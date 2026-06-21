@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, Merge, X, BookOpen, ArrowLeftRight, BookHeart } from 'lucide-react'
+import { Search, Plus, Merge, X, BookOpen, ArrowLeftRight, BookHeart, Tag, XCircle } from 'lucide-react'
 import useStore, { Stamp } from '@/store/useStore'
 import StampCard from '@/components/StampCard'
 import StampForm from '@/components/StampForm'
 
 export default function Archive() {
-  const { stamps, sets, themes, stories, circulations, fetchStamps, fetchSets, fetchThemes, fetchStories, fetchCirculations, updateStamp, mergeStamps } = useStore()
+  const { stamps, sets, themes, stories, circulations, fetchStamps, fetchSets, fetchThemes, fetchStories, fetchCirculations, updateStamp, mergeStamps, addStampTheme, removeStampTheme } = useStore()
   const [search, setSearch] = useState('')
   const [filterTheme, setFilterTheme] = useState('')
   const [filterCondition, setFilterCondition] = useState('')
@@ -17,6 +17,7 @@ export default function Archive() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [mergeTarget, setMergeTarget] = useState('')
   const [mergeSetId, setMergeSetId] = useState('')
+  const [showThemePicker, setShowThemePicker] = useState(false)
 
   useEffect(() => {
     fetchStamps()
@@ -31,7 +32,7 @@ export default function Archive() {
   const filtered = useMemo(() => {
     return stamps.filter((s) => {
       if (search && !s.name.includes(search)) return false
-      if (filterTheme && s.theme !== filterTheme) return false
+      if (filterTheme && !s.themes?.some((t) => t.name === filterTheme)) return false
       if (filterCondition && s.condition !== filterCondition) return false
       if (filterAlbumPage && s.albumPage !== filterAlbumPage) return false
       return true
@@ -239,9 +240,32 @@ export default function Archive() {
                   <span className="text-xs" style={{ color: 'var(--color-brown-light)' }}>品相</span>
                   <p className="font-medium" style={{ color: 'var(--color-brown)' }}>{detailStamp.condition}</p>
                 </div>
-                <div>
-                  <span className="text-xs" style={{ color: 'var(--color-brown-light)' }}>主题</span>
-                  <p className="font-medium" style={{ color: 'var(--color-brown)' }}>{detailStamp.theme || '未分类'}</p>
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs" style={{ color: 'var(--color-brown-light)' }}>主题</span>
+                    <button
+                      onClick={() => setShowThemePicker(true)}
+                      className="text-xs px-2 py-0.5 rounded border transition-colors hover:bg-[#F5E6C8]"
+                      style={{ borderColor: 'var(--color-beige-dark)', color: 'var(--color-brown)' }}
+                    >
+                      管理
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {detailStamp.themes && detailStamp.themes.length > 0 ? (
+                      detailStamp.themes.map((theme) => (
+                        <span
+                          key={theme.id}
+                          className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: 'var(--color-amber)', color: '#fff' }}
+                        >
+                          {theme.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm" style={{ color: 'var(--color-brown-light)' }}>未分类</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="text-xs" style={{ color: 'var(--color-brown-light)' }}>册页</span>
@@ -313,6 +337,55 @@ export default function Archive() {
                   <p className="text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无流转记录</p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showThemePicker && detailStamp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(92,58,30,0.4)' }}>
+          <div className="rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[70vh] overflow-y-auto" style={{ background: '#FFFBF0' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+              <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>管理主题</h3>
+              <button onClick={() => setShowThemePicker(false)} className="p-1 rounded hover:bg-[#F5E6C8] transition-colors">
+                <X size={18} style={{ color: 'var(--color-brown-light)' }} />
+              </button>
+            </div>
+            <div className="p-4 space-y-2">
+              {themes.map((theme) => {
+                const hasTheme = detailStamp.themes?.some((t) => t.id === theme.id)
+                return (
+                  <div
+                    key={theme.id}
+                    className="flex items-center justify-between px-4 py-3 rounded-lg border"
+                    style={{ borderColor: 'var(--color-beige-dark)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Tag size={14} style={{ color: 'var(--color-amber)' }} />
+                      <span className="text-sm" style={{ color: 'var(--color-brown)' }}>{theme.name}</span>
+                    </div>
+                    {hasTheme ? (
+                      <button
+                        onClick={() => removeStampTheme(detailStamp.id, theme.id)}
+                        className="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        移除
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => addStampTheme(detailStamp.id, theme.id)}
+                        className="text-xs px-2 py-1 rounded text-white"
+                        style={{ background: 'var(--color-amber)' }}
+                      >
+                        添加
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+              {themes.length === 0 && (
+                <p className="text-sm text-center py-6" style={{ color: 'var(--color-brown-light)' }}>暂无主题，请先创建主题</p>
+              )}
             </div>
           </div>
         </div>

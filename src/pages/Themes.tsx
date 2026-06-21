@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Tags, X } from 'lucide-react'
+import { Plus, Tags, X, Trash2 } from 'lucide-react'
 import useStore from '@/store/useStore'
 import StampCard from '@/components/StampCard'
 import ThemeForm from '@/components/ThemeForm'
@@ -7,7 +7,7 @@ import ThemeForm from '@/components/ThemeForm'
 const CATEGORIES = ['人物', '节日', '城市', '历史事件', '其他']
 
 export default function Themes() {
-  const { themes, stamps, fetchThemes, fetchStamps, updateStamp } = useStore()
+  const { themes, stamps, fetchThemes, fetchStamps, addStampTheme, removeStampTheme } = useStore()
   const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -34,20 +34,26 @@ export default function Themes() {
 
   const themeStamps = useMemo(() => {
     if (!selectedTheme) return []
-    const theme = themes.find((t) => t.id === selectedTheme)
-    if (!theme) return []
-    return stamps.filter((s) => s.theme === theme.name)
-  }, [selectedTheme, themes, stamps])
+    return stamps.filter((s) => s.themes?.some((t) => t.id === selectedTheme))
+  }, [selectedTheme, stamps])
 
-  const unassignedStamps = useMemo(() => {
-    return stamps.filter((s) => !s.theme)
-  }, [stamps])
+  const availableStamps = useMemo(() => {
+    if (!selectedTheme) return []
+    return stamps.filter((s) => !s.themes?.some((t) => t.id === selectedTheme))
+  }, [selectedTheme, stamps])
 
-  const handleAddStampToTheme = async (stampId: string) => {
-    const theme = themes.find((t) => t.id === selectedTheme)
-    if (!theme) return
-    await updateStamp(stampId, { theme: theme.name })
-    setShowAddStamp(false)
+  const handleAddStamp = async (stampId: string) => {
+    if (!selectedTheme) return
+    await addStampTheme(stampId, selectedTheme)
+  }
+
+  const handleRemoveStamp = async (stampId: string) => {
+    if (!selectedTheme) return
+    await removeStampTheme(stampId, selectedTheme)
+  }
+
+  const getThemeStampCount = (themeId: string) => {
+    return stamps.filter((s) => s.themes?.some((t) => t.id === themeId)).length
   }
 
   return (
@@ -104,7 +110,7 @@ export default function Themes() {
               </h3>
               <div className="space-y-1">
                 {categoryThemes.map((theme) => {
-                  const count = stamps.filter((s) => s.theme === theme.name).length
+                  const count = getThemeStampCount(theme.id)
                   return (
                     <button
                       key={theme.id}
@@ -155,7 +161,16 @@ export default function Themes() {
               {themeStamps.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {themeStamps.map((stamp) => (
-                    <StampCard key={stamp.id} stamp={stamp} onClick={() => {}} />
+                    <div key={stamp.id} className="relative group">
+                      <StampCard stamp={stamp} onClick={() => {}} />
+                      <button
+                        onClick={() => handleRemoveStamp(stamp.id)}
+                        className="absolute top-2 right-2 p-1 rounded-full bg-white/90 shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                        title="移除主题"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -179,25 +194,30 @@ export default function Themes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(92,58,30,0.4)' }}>
           <div className="rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[70vh] overflow-y-auto" style={{ background: '#FFFBF0' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
-              <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>添加邮品</h3>
+              <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>添加邮品到主题</h3>
               <button onClick={() => setShowAddStamp(false)} className="p-1 rounded hover:bg-[#F5E6C8] transition-colors">
                 <X size={18} style={{ color: 'var(--color-brown-light)' }} />
               </button>
             </div>
             <div className="p-4 space-y-2">
-              {unassignedStamps.length > 0 ? (
-                unassignedStamps.map((stamp) => (
+              {availableStamps.length > 0 ? (
+                availableStamps.map((stamp) => (
                   <button
                     key={stamp.id}
-                    onClick={() => handleAddStampToTheme(stamp.id)}
-                    className="w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors hover:bg-[#F5E6C8]"
+                    onClick={() => handleAddStamp(stamp.id)}
+                    className="w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors hover:bg-[#F5E6C8] flex items-center justify-between"
                     style={{ borderColor: 'var(--color-beige-dark)', color: 'var(--color-brown)' }}
                   >
-                    {stamp.name} ({stamp.issueYear})
+                    <span>{stamp.name} ({stamp.issueYear})</span>
+                    {stamp.themes?.length > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                      {stamp.themes.length} 个主题
+                    </span>
+                    )}
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-center py-6" style={{ color: 'var(--color-brown-light)' }}>所有邮品已归属主题</p>
+                <p className="text-sm text-center py-6" style={{ color: 'var(--color-brown-light)' }}>所有邮品已加入此主题</p>
               )}
             </div>
           </div>

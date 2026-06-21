@@ -18,12 +18,23 @@ export class StatsService {
     ).all();
 
     const themeDistributionRaw = db.prepare(
-      "SELECT theme, COUNT(*) as count FROM stamps GROUP BY theme ORDER BY count DESC"
+      `SELECT t.name as theme_name, COUNT(ts.stamp_id) as count 
+       FROM themes t 
+       LEFT JOIN theme_stamps ts ON t.id = ts.theme_id 
+       GROUP BY t.id 
+       ORDER BY count DESC`
     ).all();
     const themeDistribution = themeDistributionRaw.map((t: any) => ({
-      name: t.theme || '未分类',
+      name: t.theme_name,
       value: t.count,
     }));
+    const uncategorizedCount = (db.prepare(
+      `SELECT COUNT(*) as cnt FROM stamps s 
+       WHERE NOT EXISTS (SELECT 1 FROM theme_stamps ts WHERE ts.stamp_id = s.id)`
+    ).get() as any).cnt;
+    if (uncategorizedCount > 0) {
+      themeDistribution.push({ name: '未分类', value: uncategorizedCount });
+    }
 
     const yearDistribution = db.prepare(
       "SELECT issue_year, COUNT(*) as count FROM stamps GROUP BY issue_year ORDER BY issue_year"
@@ -42,7 +53,10 @@ export class StatsService {
     ).all();
 
     const unsortedAlbumPagesRaw = db.prepare(
-      "SELECT album_page, COUNT(*) as count FROM stamps WHERE theme IS NULL OR theme = '' GROUP BY album_page"
+      `SELECT s.album_page, COUNT(*) as count 
+       FROM stamps s 
+       WHERE NOT EXISTS (SELECT 1 FROM theme_stamps ts WHERE ts.stamp_id = s.id)
+       GROUP BY s.album_page`
     ).all();
     const unsortedAlbumPages = unsortedAlbumPagesRaw.map((p: any) => ({
       name: p.album_page || '未归册',

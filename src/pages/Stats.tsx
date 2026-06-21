@@ -20,8 +20,13 @@ export default function Stats() {
     if (stats?.themeDistribution?.length) return stats.themeDistribution
     const map: Record<string, number> = {}
     stamps.forEach((s) => {
-      const key = s.theme || '未分类'
-      map[key] = (map[key] || 0) + 1
+      if (s.themes && s.themes.length > 0) {
+        s.themes.forEach((t) => {
+          map[t.name] = (map[t.name] || 0) + 1
+        })
+      } else {
+        map['未分类'] = (map['未分类'] || 0) + 1
+      }
     })
     return Object.entries(map).map(([name, value]) => ({ name, value }))
   }, [stamps, stats])
@@ -29,7 +34,7 @@ export default function Stats() {
   const unsortedAlbumPages = useMemo(() => {
     if (stats?.unsortedAlbumPages?.length) return stats.unsortedAlbumPages
     const map: Record<string, number> = {}
-    stamps.filter((s) => !s.theme).forEach((s) => {
+    stamps.filter((s) => !s.themes || s.themes.length === 0).forEach((s) => {
       const key = s.albumPage || '未归册'
       map[key] = (map[key] || 0) + 1
     })
@@ -40,7 +45,11 @@ export default function Stats() {
     if (stats?.topThemes?.length) return stats.topThemes
     const map: Record<string, number> = {}
     stamps.forEach((s) => {
-      if (s.theme) map[s.theme] = (map[s.theme] || 0) + 1
+      if (s.themes && s.themes.length > 0) {
+        s.themes.forEach((t) => {
+          map[t.name] = (map[t.name] || 0) + 1
+        })
+      }
     })
     return Object.entries(map)
       .sort((a, b) => b[1] - a[1])

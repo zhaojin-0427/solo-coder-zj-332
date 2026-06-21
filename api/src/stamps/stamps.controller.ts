@@ -34,4 +34,19 @@ export class StampsController {
   merge(@Body() body: { stampIds: number[]; targetAlbumPage: string; setId?: number }) {
     return this.stampsService.merge(body.stampIds, body.targetAlbumPage, body.setId);
   }
+
+  @Post(':id/themes')
+  addTheme(@Param('id') id: string, @Body() body: { themeId: number }) {
+    return this.stampsService.addTheme(Number(id), body.themeId);
+  }
+
+  @Delete(':id/themes/:themeId')
+  removeTheme(@Param('id') id: string, @Param('themeId') themeId: string) {
+    return this.stampsService.removeTheme(Number(id), Number(themeId));
+  }
+
+  @Put(':id/themes')
+  setThemes(@Param('id') id: string, @Body() body: { themeIds: number[] }) {
+    return this.stampsService.setThemes(Number(id), body.themeIds);
+  }
 }

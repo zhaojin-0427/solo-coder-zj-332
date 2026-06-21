@@ -10,12 +10,12 @@ export class StampsService {
     const params: any[] = [];
 
     if (query.keyword) {
-      conditions.push('(s.name LIKE ? OR s.theme LIKE ? OR s.source LIKE ?)');
+      conditions.push('(s.name LIKE ? OR s.source LIKE ?)');
       const like = `%${query.keyword}%`;
-      params.push(like, like, like);
+      params.push(like, like);
     }
     if (query.theme) {
-      conditions.push('s.theme = ?');
+      conditions.push(`s.id IN (SELECT ts.stamp_id FROM theme_stamps ts INNER JOIN themes t ON t.id = ts.theme_id WHERE t.name = ?)`);
       params.push(query.theme);
     }
     if (query.issueYear) {
@@ -37,7 +37,28 @@ export class StampsService {
 
     const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const sql = `SELECT s.*, st.name as set_name FROM stamps s LEFT JOIN sets st ON s.set_id = st.id ${where} ORDER BY s.created_at DESC`;
-    return toCamelCase(db.prepare(sql).all(...params));
+    const stamps = db.prepare(sql).all(...params);
+    
+    const stampIds = stamps.map((s: any) => s.id);
+    let themesMap: Record<number, any[]> = {};
+    if (stampIds.length > 0) {
+      const placeholders = stampIds.map(() => '?').join(',');
+      const themes = db.prepare(
+        `SELECT ts.stamp_id, t.* FROM themes t 
+         INNER JOIN theme_stamps ts ON t.id = ts.theme_id 
+         WHERE ts.stamp_id IN (${placeholders})
+         ORDER BY t.created_at DESC`
+      ).all(...stampIds);
+      for (const th of themes) {
+        if (!themesMap[th.stamp_id]) themesMap[th.stamp_id] = [];
+        themesMap[th.stamp_id].push({ id: th.id, name: th.name, category: th.category, description: th.description, createdAt: th.created_at });
+      }
+    }
+    
+    return toCamelCase(stamps.map((s: any) => ({
+      ...s,
+      themes: themesMap[s.id] || [],
+    })));
   }
 
   findOne(id: number) {
@@ -114,6 +135,52 @@ export class StampsService {
     });
     transaction();
     const placeholders = stampIds.map(() => '?').join(',');
-    return toCamelCase(db.prepare(`SELECT s.*, st.name as set_name FROM stamps s LEFT JOIN sets st ON s.set_id = st.id WHERE s.id IN (${placeholders})`).all(...stampIds));
+    const stamps = db.prepare(`SELECT s.*, st.name as set_name FROM stamps s LEFT JOIN sets st ON s.set_id = st.id WHERE s.id IN (${placeholders})`).all(...stampIds);
+    
+    const ids = stamps.map((s: any) => s.id);
+    let themesMap: Record<number, any[]> = {};
+    if (ids.length > 0) {
+      const ph = ids.map(() => '?').join(',');
+      const themes = db.prepare(
+        `SELECT ts.stamp_id, t.* FROM themes t 
+         INNER JOIN theme_stamps ts ON t.id = ts.theme_id 
+         WHERE ts.stamp_id IN (${ph})
+         ORDER BY t.created_at DESC`
+      ).all(...ids);
+      for (const th of themes) {
+        if (!themesMap[th.stamp_id]) themesMap[th.stamp_id] = [];
+        themesMap[th.stamp_id].push({ id: th.id, name: th.name, category: th.category, description: th.description, createdAt: th.created_at });
+      }
+    }
+    
+    return toCamelCase(stamps.map((s: any) => ({
+      ...s,
+      themes: themesMap[s.id] || [],
+    })));
+  }
+
+  addTheme(stampId: number, themeId: number) {
+    const db = getDb();
+    db.prepare('INSERT OR IGNORE INTO theme_stamps (stamp_id, theme_id) VALUES (?, ?)').run(stampId, themeId);
+    return this.findOne(stampId);
+  }
+
+  removeTheme(stampId: number, themeId: number) {
+    const db = getDb();
+    db.prepare('DELETE FROM theme_stamps WHERE stamp_id = ? AND theme_id = ?').run(stampId, themeId);
+    return this.findOne(stampId);
+  }
+
+  setThemes(stampId: number, themeIds: number[]) {
+    const db = getDb();
+    const transaction = db.transaction(() => {
+      db.prepare('DELETE FROM theme_stamps WHERE stamp_id = ?').run(stampId);
+      const stmt = db.prepare('INSERT OR IGNORE INTO theme_stamps (stamp_id, theme_id) VALUES (?, ?)');
+      for (const themeId of themeIds) {
+        stmt.run(stampId, themeId);
+      }
+    });
+    transaction();
+    return this.findOne(stampId);
   }
 }

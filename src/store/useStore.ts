@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import api from '@/utils/api'
 
+export interface StampTheme {
+  id: string
+  name: string
+  category: string
+  description: string
+  createdAt: string
+}
+
 export interface Stamp {
   id: string
   name: string
@@ -12,6 +20,7 @@ export interface Stamp {
   setId: string
   setName: string
   image?: string
+  themes: StampTheme[]
   createdAt: string
   updatedAt: string
 }
@@ -29,6 +38,7 @@ export interface Theme {
   name: string
   category: string
   description: string
+  stampCount: number
   createdAt: string
 }
 
@@ -86,6 +96,9 @@ interface StoreState {
   createTheme: (data: Partial<Theme>) => Promise<void>
   updateTheme: (id: string, data: Partial<Theme>) => Promise<void>
   deleteTheme: (id: string) => Promise<void>
+  addStampTheme: (stampId: string, themeId: string) => Promise<void>
+  removeStampTheme: (stampId: string, themeId: string) => Promise<void>
+  setStampThemes: (stampId: string, themeIds: string[]) => Promise<void>
   createStory: (data: Partial<Story>) => Promise<void>
   updateStory: (id: string, data: Partial<Story>) => Promise<void>
   deleteStory: (id: string) => Promise<void>
@@ -162,6 +175,7 @@ const useStore = create<StoreState>((set, get) => ({
       const result = await api.post('/stamps', data)
       const stamp = (result as any).data || (result as any)
       set({ stamps: [...get().stamps, stamp] })
+      return stamp
     } catch {}
   },
 
@@ -212,6 +226,30 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       await api.delete(`/themes/${id}`)
       set({ themes: get().themes.filter((t) => t.id !== id) })
+    } catch {}
+  },
+
+  addStampTheme: async (stampId, themeId) => {
+    try {
+      const result = await api.post(`/stamps/${stampId}/themes`, { themeId: Number(themeId) })
+      const updated = (result as any).data || (result as any)
+      set({ stamps: get().stamps.map((s) => (s.id === stampId ? { ...s, ...updated } : s)) })
+    } catch {}
+  },
+
+  removeStampTheme: async (stampId, themeId) => {
+    try {
+      const result = await api.delete(`/stamps/${stampId}/themes/${themeId}`)
+      const updated = (result as any).data || (result as any)
+      set({ stamps: get().stamps.map((s) => (s.id === stampId ? { ...s, ...updated } : s)) })
+    } catch {}
+  },
+
+  setStampThemes: async (stampId, themeIds) => {
+    try {
+      const result = await api.put(`/stamps/${stampId}/themes`, { themeIds: themeIds.map(Number) })
+      const updated = (result as any).data || (result as any)
+      set({ stamps: get().stamps.map((s) => (s.id === stampId ? { ...s, ...updated } : s)) })
     } catch {}
   },
 
