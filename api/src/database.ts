@@ -86,6 +86,44 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_stories_stamp_id ON stories(stamp_id);
     CREATE INDEX IF NOT EXISTS idx_circulations_stamp_id ON circulations(stamp_id);
     CREATE INDEX IF NOT EXISTS idx_circulations_status ON circulations(status);
+
+    CREATE TABLE IF NOT EXISTS exhibitions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      theme_type TEXT NOT NULL CHECK(theme_type IN ('社区展览','家庭纪念日','节日主题','其他')),
+      description TEXT DEFAULT '',
+      start_date DATE,
+      end_date DATE,
+      location TEXT DEFAULT '',
+      status TEXT NOT NULL CHECK(status IN ('草稿','进行中','已完成')) DEFAULT '草稿',
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS exhibition_stamps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exhibition_id INTEGER NOT NULL REFERENCES exhibitions(id) ON DELETE CASCADE,
+      stamp_id INTEGER NOT NULL REFERENCES stamps(id) ON DELETE CASCADE,
+      display_role TEXT NOT NULL CHECK(display_role IN ('主展品','辅助展品','装饰展品')) DEFAULT '主展品',
+      display_note TEXT DEFAULT '',
+      expected_borrow_date DATE,
+      expected_return_date DATE,
+      keeper TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('候选','待确认','已确认','暂缓','已替换','已移出')) DEFAULT '候选',
+      display_narration TEXT DEFAULT '',
+      memorial_meaning TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(exhibition_id, stamp_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_exhibitions_status ON exhibitions(status);
+    CREATE INDEX IF NOT EXISTS idx_exhibitions_theme_type ON exhibitions(theme_type);
+    CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_exhibition_id ON exhibition_stamps(exhibition_id);
+    CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_stamp_id ON exhibition_stamps(stamp_id);
+    CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_status ON exhibition_stamps(status);
+    CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_keeper ON exhibition_stamps(keeper);
   `);
 
   seedData(db);
@@ -110,6 +148,14 @@ function seedData(db: Database.Database) {
   const insertCirculation = db.prepare(
     `INSERT INTO circulations (stamp_id, type, from_person, to_person, purpose, status, borrow_date, return_date, note)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertExhibition = db.prepare(
+    `INSERT INTO exhibitions (name, theme_type, description, start_date, end_date, location, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertExhibitionStamp = db.prepare(
+    `INSERT INTO exhibition_stamps (exhibition_id, stamp_id, display_role, display_note, expected_borrow_date, expected_return_date, keeper, status, display_narration, memorial_meaning)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const transaction = db.transaction(() => {
@@ -159,6 +205,88 @@ function seedData(db: Database.Database) {
     insertCirculation.run(s5.lastInsertRowid, '转交', '王大明', '王小明', '传承给下一代', '已完成', '2025-01-20', '2025-01-20', '儿子收藏');
     insertCirculation.run(s7.lastInsertRowid, '借出', '李秀芳', '赵阿姨', '社区文化展', '进行中', '2025-06-01', null, '预计7月归还');
     insertCirculation.run(s6.lastInsertRowid, '归还', '张建国', '王大明', '参展结束归还', '已完成', '2025-04-15', '2025-04-20', '品相未变');
+
+    const e1 = insertExhibition.run(
+      '社区端午节邮品展',
+      '节日主题',
+      '社区文化中心端午节主题邮品展览，展示传统节日文化',
+      '2025-06-10',
+      '2025-06-20',
+      '社区文化中心',
+      '进行中',
+      '王小明'
+    );
+    const e2 = insertExhibition.run(
+      '爷爷诞辰100周年纪念展',
+      '家庭纪念日',
+      '纪念爷爷诞辰100周年家庭私人展，展示爷爷收藏的珍贵邮票',
+      '2025-07-01',
+      '2025-07-07',
+      '家中客厅',
+      '草稿',
+      '李秀芳'
+    );
+
+    insertExhibitionStamp.run(
+      e1.lastInsertRowid,
+      s7.lastInsertRowid,
+      '主展品',
+      '放置在入口显眼位置',
+      '2025-06-08',
+      '2025-06-21',
+      '王大明',
+      '待确认',
+      '这枚中秋节邮票是我女儿从杭州寄来的，上面的邮戳日期是2002年9月21日，正好是中秋节。当时女儿刚去杭州上大学，第一次离家过节，专门寄了这张邮票回来。',
+      '代表着家人团聚的美好愿望，每次看到都想起女儿第一次在外过节的牵挂'
+    );
+    insertExhibitionStamp.run(
+      e1.lastInsertRowid,
+      s8.lastInsertRowid,
+      '辅助展品',
+      '与中秋节邮票相邻展示',
+      '2025-06-08',
+      '2025-06-21',
+      '张建国',
+      '已确认',
+      '端午节邮票是在全国集邮展览上和武汉邮友交换来的，当时他一眼就看中了我那枚建国纪念票，商量了好久才同意交换。',
+      '龙舟竞渡的图案生动展现了端午节的传统习俗'
+    );
+    insertExhibitionStamp.run(
+      e1.lastInsertRowid,
+      s1.lastInsertRowid,
+      '装饰展品',
+      '展柜角落装饰',
+      '2025-06-08',
+      '2025-06-21',
+      '王大明',
+      '候选',
+      '',
+      ''
+    );
+    insertExhibitionStamp.run(
+      e2.lastInsertRowid,
+      s10.lastInsertRowid,
+      '主展品',
+      '展柜中心位置',
+      '2025-06-28',
+      '2025-07-08',
+      '李秀芳',
+      '已确认',
+      '爷爷是辛亥革命研究学者，一生致力于孙中山先生思想的研究。这枚邮票是他1956年在上海旧书摊淘到的，当时花了他半个月的工资。',
+      '爷爷说每次看到这枚邮票，就想起孙中山先生"天下为公"的教诲，这是他一生的座右铭'
+    );
+    insertExhibitionStamp.run(
+      e2.lastInsertRowid,
+      s5.lastInsertRowid,
+      '辅助展品',
+      '主展品旁',
+      '2025-06-28',
+      '2025-07-08',
+      '王小明',
+      '暂缓',
+      '',
+      ''
+    );
   });
 
   transaction();

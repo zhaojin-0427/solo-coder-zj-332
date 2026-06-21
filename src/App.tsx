@@ -4,6 +4,7 @@ import Archive from '@/pages/Archive'
 import Themes from '@/pages/Themes'
 import Stories from '@/pages/Stories'
 import Circulation from '@/pages/Circulation'
+import Exhibitions from '@/pages/Exhibitions'
 import Stats from '@/pages/Stats'
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/themes" element={<Themes />} />
           <Route path="/stories" element={<Stories />} />
           <Route path="/circulation" element={<Circulation />} />
+          <Route path="/exhibitions" element={<Exhibitions />} />
           <Route path="/stats" element={<Stats />} />
         </Route>
       </Routes>

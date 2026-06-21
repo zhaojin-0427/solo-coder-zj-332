@@ -1,11 +1,20 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, Merge, X, BookOpen, ArrowLeftRight, BookHeart, Tag, XCircle } from 'lucide-react'
+import { Search, Plus, Merge, X, BookOpen, ArrowLeftRight, BookHeart, Tag, XCircle, Grid3X3 } from 'lucide-react'
 import useStore, { Stamp } from '@/store/useStore'
 import StampCard from '@/components/StampCard'
 import StampForm from '@/components/StampForm'
 
+const statusColors: Record<string, string> = {
+  '候选': 'bg-gray-100 text-gray-800',
+  '待确认': 'bg-amber-100 text-amber-800',
+  '已确认': 'bg-green-100 text-green-800',
+  '暂缓': 'bg-yellow-100 text-yellow-800',
+  '已替换': 'bg-purple-100 text-purple-800',
+  '已移出': 'bg-red-100 text-red-800',
+}
+
 export default function Archive() {
-  const { stamps, sets, themes, stories, circulations, fetchStamps, fetchSets, fetchThemes, fetchStories, fetchCirculations, updateStamp, mergeStamps, addStampTheme, removeStampTheme } = useStore()
+  const { stamps, sets, themes, stories, circulations, stampExhibitions, fetchStamps, fetchSets, fetchThemes, fetchStories, fetchCirculations, fetchStampExhibitions, updateStamp, mergeStamps, addStampTheme, removeStampTheme } = useStore()
   const [search, setSearch] = useState('')
   const [filterTheme, setFilterTheme] = useState('')
   const [filterCondition, setFilterCondition] = useState('')
@@ -53,6 +62,11 @@ export default function Archive() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     )
+  }
+
+  const handleOpenDetail = async (stamp: Stamp) => {
+    setDetailStamp(stamp)
+    await fetchStampExhibitions(stamp.id)
   }
 
   const handleMerge = async () => {
@@ -184,7 +198,7 @@ export default function Archive() {
           <StampCard
             key={stamp.id}
             stamp={stamp}
-            onClick={(s) => { if (!mergeMode) setDetailStamp(s) }}
+            onClick={(s) => { if (!mergeMode) handleOpenDetail(s) }}
             selectable={mergeMode}
             selected={selectedIds.includes(stamp.id)}
             onSelect={handleSelect}
@@ -335,6 +349,53 @@ export default function Archive() {
                   </div>
                 ) : (
                   <p className="text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无流转记录</p>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--color-brown)' }}>
+                  <Grid3X3 size={16} /> 展陈参与记录
+                </h4>
+                {stampExhibitions.length > 0 ? (
+                  <div className="space-y-2">
+                    {stampExhibitions.map((ex) => (
+                      <div key={ex.id} className="p-3 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFF8EC' }}>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-medium" style={{ color: 'var(--color-brown)' }}>{ex.exhibitionName}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[ex.status]}`}>
+                            {ex.status}
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--color-beige-dark)', color: 'var(--color-brown)' }}>
+                            {ex.displayRole}
+                          </span>
+                        </div>
+                        <div className="text-xs" style={{ color: 'var(--color-brown-light)' }}>
+                          保管人：{ex.keeper}
+                          {ex.expectedBorrowDate && ` · 借出：${ex.expectedBorrowDate}`}
+                          {ex.expectedReturnDate && ` · 归还：${ex.expectedReturnDate}`}
+                        </div>
+                        {ex.displayNote && (
+                          <p className="text-xs mt-1" style={{ color: 'var(--color-brown-light)' }}>
+                            备注：{ex.displayNote}
+                          </p>
+                        )}
+                        {ex.displayNarration && (
+                          <div className="mt-2 p-2 rounded" style={{ background: 'var(--color-beige)' }}>
+                            <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-brown)' }}>展陈讲述词：</p>
+                            <p className="text-xs" style={{ color: 'var(--color-brown)' }}>{ex.displayNarration}</p>
+                          </div>
+                        )}
+                        {ex.memorialMeaning && (
+                          <div className="mt-2 p-2 rounded" style={{ background: '#FEF3C7' }}>
+                            <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-brown)' }}>纪念意义：</p>
+                            <p className="text-xs" style={{ color: 'var(--color-brown)' }}>{ex.memorialMeaning}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无展陈参与记录</p>
                 )}
               </div>
             </div>

@@ -84,6 +84,53 @@ export class StatsService {
       'SELECT c.*, s.name as stamp_name FROM circulations c LEFT JOIN stamps s ON c.stamp_id = s.id ORDER BY c.created_at DESC LIMIT 5'
     ).all();
 
+    const totalExhibitions = (db.prepare('SELECT COUNT(*) as cnt FROM exhibitions').get() as any).cnt;
+    const pendingExhibitionStamps = (db.prepare(
+      "SELECT COUNT(*) as cnt FROM exhibition_stamps WHERE status = '待确认'"
+    ).get() as any).cnt;
+
+    const exhibitionThemeDistributionRaw = db.prepare(
+      `SELECT theme_type, COUNT(*) as count 
+       FROM exhibitions 
+       GROUP BY theme_type
+       ORDER BY count DESC`
+    ).all();
+    const exhibitionThemeDistribution = exhibitionThemeDistributionRaw.map((t: any) => ({
+      name: t.theme_type,
+      value: t.count,
+    }));
+
+    const exhibitionUsageByThemeRaw = db.prepare(
+      `SELECT t.name as theme_name, COUNT(DISTINCT es.exhibition_id) as use_count
+       FROM exhibition_stamps es
+       INNER JOIN stamps s ON es.stamp_id = s.id
+       INNER JOIN theme_stamps ts ON s.id = ts.stamp_id
+       INNER JOIN themes t ON ts.theme_id = t.id
+       WHERE es.status != '已移出'
+       GROUP BY t.id
+       ORDER BY use_count DESC`
+    ).all();
+    const exhibitionUsageByTheme = exhibitionUsageByThemeRaw.map((t: any) => ({
+      name: t.theme_name,
+      count: t.use_count,
+    }));
+
+    const keeperDistributionRaw = db.prepare(
+      `SELECT keeper, COUNT(*) as count 
+       FROM exhibition_stamps 
+       WHERE status != '已移出'
+       GROUP BY keeper
+       ORDER BY count DESC`
+    ).all();
+    const keeperDistribution = keeperDistributionRaw.map((k: any) => ({
+      name: k.keeper,
+      value: k.count,
+    }));
+
+    const recentExhibitions = db.prepare(
+      'SELECT * FROM exhibitions ORDER BY created_at DESC LIMIT 5'
+    ).all();
+
     return toCamelCase({
       totalStamps,
       totalThemes,
@@ -101,6 +148,12 @@ export class StatsService {
       circulationDistribution,
       recentStamps,
       recentCirculations,
+      totalExhibitions,
+      pendingExhibitionStamps,
+      exhibitionThemeDistribution,
+      exhibitionUsageByTheme,
+      keeperDistribution,
+      recentExhibitions,
     });
   }
 }

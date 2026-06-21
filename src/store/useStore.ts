@@ -65,6 +65,46 @@ export interface Circulation {
   createdAt: string
 }
 
+export interface Exhibition {
+  id: string
+  name: string
+  themeType: string
+  description: string
+  startDate: string
+  endDate: string
+  location: string
+  status: string
+  createdBy: string
+  stampCount: number
+  createdAt: string
+  updatedAt: string
+  stamps?: ExhibitionStamp[]
+}
+
+export interface ExhibitionStamp {
+  id: string
+  exhibitionId: string
+  stampId: string
+  stampName: string
+  issueYear: number
+  condition: string
+  albumPage: string
+  theme: string
+  source: string
+  displayRole: string
+  displayNote: string
+  expectedBorrowDate: string
+  expectedReturnDate: string
+  keeper: string
+  status: string
+  displayNarration: string
+  memorialMeaning: string
+  createdAt: string
+  updatedAt: string
+  exhibitionName?: string
+  exhibitionStatus?: string
+}
+
 export interface Stats {
   themeDistribution: { name: string; value: number }[]
   unsortedAlbumPages: { name: string; count: number }[]
@@ -73,6 +113,11 @@ export interface Stats {
   totalStamps: number
   totalStories: number
   activeCirculations: number
+  totalExhibitions: number
+  pendingExhibitionStamps: number
+  exhibitionThemeDistribution: { name: string; value: number }[]
+  exhibitionUsageByTheme: { name: string; count: number }[]
+  keeperDistribution: { name: string; value: number }[]
 }
 
 interface StoreState {
@@ -81,6 +126,10 @@ interface StoreState {
   themes: Theme[]
   stories: Story[]
   circulations: Circulation[]
+  exhibitions: Exhibition[]
+  currentExhibition: Exhibition | null
+  exhibitionStamps: ExhibitionStamp[]
+  stampExhibitions: ExhibitionStamp[]
   stats: Stats | null
   loading: boolean
   fetchStamps: () => Promise<void>
@@ -88,6 +137,10 @@ interface StoreState {
   fetchThemes: () => Promise<void>
   fetchStories: () => Promise<void>
   fetchCirculations: () => Promise<void>
+  fetchExhibitions: (query?: Record<string, string>) => Promise<void>
+  fetchExhibition: (id: string) => Promise<void>
+  fetchExhibitionStamps: (exhibitionId: string) => Promise<void>
+  fetchStampExhibitions: (stampId: string) => Promise<void>
   fetchStats: () => Promise<void>
   createStamp: (data: Partial<Stamp>) => Promise<void>
   updateStamp: (id: string, data: Partial<Stamp>) => Promise<void>
@@ -105,6 +158,16 @@ interface StoreState {
   createCirculation: (data: Partial<Circulation>) => Promise<void>
   updateCirculation: (id: string, data: Partial<Circulation>) => Promise<void>
   deleteCirculation: (id: string) => Promise<void>
+  createExhibition: (data: Partial<Exhibition>) => Promise<Exhibition | undefined>
+  updateExhibition: (id: string, data: Partial<Exhibition>) => Promise<void>
+  deleteExhibition: (id: string) => Promise<void>
+  addExhibitionStamp: (exhibitionId: string, data: Partial<ExhibitionStamp>) => Promise<void>
+  updateExhibitionStamp: (exhibitionId: string, stampId: string, data: Partial<ExhibitionStamp>) => Promise<void>
+  confirmExhibitionStamp: (exhibitionId: string, stampId: string) => Promise<void>
+  deferExhibitionStamp: (exhibitionId: string, stampId: string) => Promise<void>
+  replaceExhibitionStamp: (exhibitionId: string, oldStampId: string, newStampId: string, displayRole?: string, keeper?: string) => Promise<void>
+  removeExhibitionStamp: (exhibitionId: string, stampId: string) => Promise<void>
+  setCurrentExhibition: (exhibition: Exhibition | null) => void
 }
 
 const useStore = create<StoreState>((set, get) => ({
@@ -113,6 +176,10 @@ const useStore = create<StoreState>((set, get) => ({
   themes: [],
   stories: [],
   circulations: [],
+  exhibitions: [],
+  currentExhibition: null,
+  exhibitionStamps: [],
+  stampExhibitions: [],
   stats: null,
   loading: false,
 
@@ -297,6 +364,127 @@ const useStore = create<StoreState>((set, get) => ({
       await api.delete(`/circulations/${id}`)
       set({ circulations: get().circulations.filter((c) => c.id !== id) })
     } catch {}
+  },
+
+  fetchExhibitions: async (query) => {
+    set({ loading: true })
+    try {
+      const params = new URLSearchParams()
+      if (query) {
+        Object.entries(query).forEach(([k, v]) => v && params.append(k, v))
+      }
+      const data = await api.get('/exhibitions', { params })
+      set({ exhibitions: (data as any).data || (data as any) || [], loading: false })
+    } catch {
+      set({ loading: false })
+    }
+  },
+
+  fetchExhibition: async (id) => {
+    try {
+      const data = await api.get(`/exhibitions/${id}`)
+      const exhibition = (data as any).data || (data as any)
+      set({ currentExhibition: exhibition })
+      return exhibition
+    } catch {}
+  },
+
+  fetchExhibitionStamps: async (exhibitionId) => {
+    try {
+      const data = await api.get(`/exhibitions/${exhibitionId}/stamps`)
+      set({ exhibitionStamps: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchStampExhibitions: async (stampId) => {
+    try {
+      const data = await api.get(`/exhibitions/stamps/${stampId}/exhibitions`)
+      set({ stampExhibitions: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  createExhibition: async (data) => {
+    try {
+      const result = await api.post('/exhibitions', data)
+      const exhibition = (result as any).data || (result as any)
+      set({ exhibitions: [...get().exhibitions, exhibition] })
+      return exhibition
+    } catch {}
+  },
+
+  updateExhibition: async (id, data) => {
+    try {
+      const result = await api.put(`/exhibitions/${id}`, data)
+      const updated = (result as any).data || (result as any)
+      set({
+        exhibitions: get().exhibitions.map((e) => (e.id === id ? { ...e, ...updated } : e)),
+        currentExhibition: get().currentExhibition?.id === id ? { ...get().currentExhibition, ...updated } : get().currentExhibition,
+      })
+    } catch {}
+  },
+
+  deleteExhibition: async (id) => {
+    try {
+      await api.delete(`/exhibitions/${id}`)
+      set({
+        exhibitions: get().exhibitions.filter((e) => e.id !== id),
+        currentExhibition: get().currentExhibition?.id === id ? null : get().currentExhibition,
+      })
+    } catch {}
+  },
+
+  addExhibitionStamp: async (exhibitionId, data) => {
+    try {
+      const result = await api.post(`/exhibitions/${exhibitionId}/stamps`, data)
+      set({ exhibitionStamps: (result as any).data || (result as any) || [] })
+      get().fetchExhibitions()
+    } catch {}
+  },
+
+  updateExhibitionStamp: async (exhibitionId, stampId, data) => {
+    try {
+      const result = await api.put(`/exhibitions/${exhibitionId}/stamps/${stampId}`, data)
+      set({ exhibitionStamps: (result as any).data || (result as any) || [] })
+    } catch {}
+  },
+
+  confirmExhibitionStamp: async (exhibitionId, stampId) => {
+    try {
+      const result = await api.put(`/exhibitions/${exhibitionId}/stamps/${stampId}/confirm`)
+      set({ exhibitionStamps: (result as any).data || (result as any) || [] })
+      get().fetchExhibitions()
+    } catch {}
+  },
+
+  deferExhibitionStamp: async (exhibitionId, stampId) => {
+    try {
+      const result = await api.put(`/exhibitions/${exhibitionId}/stamps/${stampId}/defer`)
+      set({ exhibitionStamps: (result as any).data || (result as any) || [] })
+    } catch {}
+  },
+
+  replaceExhibitionStamp: async (exhibitionId, oldStampId, newStampId, displayRole, keeper) => {
+    try {
+      const result = await api.put(`/exhibitions/${exhibitionId}/stamps/${oldStampId}/replace`, {
+        newStampId: Number(newStampId),
+        displayRole,
+        keeper,
+      })
+      set({ exhibitionStamps: (result as any).data || (result as any) || [] })
+      get().fetchExhibitions()
+    } catch {}
+  },
+
+  removeExhibitionStamp: async (exhibitionId, stampId) => {
+    try {
+      const result = await api.put(`/exhibitions/${exhibitionId}/stamps/${stampId}/remove`)
+      set({ exhibitionStamps: (result as any).data || (result as any) || [] })
+      get().fetchExhibitions()
+    } catch {}
+  },
+
+  setCurrentExhibition: (exhibition) => {
+    set({ currentExhibition: exhibition })
   },
 }))
 

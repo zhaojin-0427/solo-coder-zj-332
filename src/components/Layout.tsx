@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BookOpen, Tags, BookHeart, ArrowLeftRight, BarChart3 } from 'lucide-react'
+import { BookOpen, Tags, BookHeart, ArrowLeftRight, BarChart3, Grid3X3 } from 'lucide-react'
 
 const navItems = [
   { path: '/archive', label: '邮品档案', icon: BookOpen },
   { path: '/themes', label: '主题整理', icon: Tags },
   { path: '/stories', label: '来源故事', icon: BookHeart },
   { path: '/circulation', label: '借阅流转', icon: ArrowLeftRight },
+  { path: '/exhibitions', label: '展陈策划', icon: Grid3X3 },
   { path: '/stats', label: '统计', icon: BarChart3 },
 ]
 
