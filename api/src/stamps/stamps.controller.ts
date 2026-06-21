@@ -31,7 +31,7 @@ export class StampsController {
   }
 
   @Post('merge')
-  merge(@Body() body: { stampIds: number[]; targetAlbumPage: string }) {
-    return this.stampsService.merge(body.stampIds, body.targetAlbumPage);
+  merge(@Body() body: { stampIds: number[]; targetAlbumPage: string; setId?: number }) {
+    return this.stampsService.merge(body.stampIds, body.targetAlbumPage, body.setId);
   }
 }

@@ -10,9 +10,18 @@ export interface Stamp {
   source: string
   albumPage: string
   setId: string
+  setName: string
   image?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface SetItem {
+  id: string
+  name: string
+  description: string
+  stampCount: number
+  createdAt: string
 }
 
 export interface Theme {
@@ -58,12 +67,14 @@ export interface Stats {
 
 interface StoreState {
   stamps: Stamp[]
+  sets: SetItem[]
   themes: Theme[]
   stories: Story[]
   circulations: Circulation[]
   stats: Stats | null
   loading: boolean
   fetchStamps: () => Promise<void>
+  fetchSets: () => Promise<void>
   fetchThemes: () => Promise<void>
   fetchStories: () => Promise<void>
   fetchCirculations: () => Promise<void>
@@ -71,6 +82,7 @@ interface StoreState {
   createStamp: (data: Partial<Stamp>) => Promise<void>
   updateStamp: (id: string, data: Partial<Stamp>) => Promise<void>
   deleteStamp: (id: string) => Promise<void>
+  mergeStamps: (stampIds: string[], targetAlbumPage: string, setId: string) => Promise<void>
   createTheme: (data: Partial<Theme>) => Promise<void>
   updateTheme: (id: string, data: Partial<Theme>) => Promise<void>
   deleteTheme: (id: string) => Promise<void>
@@ -84,6 +96,7 @@ interface StoreState {
 
 const useStore = create<StoreState>((set, get) => ({
   stamps: [],
+  sets: [],
   themes: [],
   stories: [],
   circulations: [],
@@ -98,6 +111,13 @@ const useStore = create<StoreState>((set, get) => ({
     } catch {
       set({ loading: false })
     }
+  },
+
+  fetchSets: async () => {
+    try {
+      const data = await api.get('/sets')
+      set({ sets: (data as any).data || (data as any) || [] })
+    } catch {}
   },
 
   fetchThemes: async () => {
@@ -157,6 +177,18 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       await api.delete(`/stamps/${id}`)
       set({ stamps: get().stamps.filter((s) => s.id !== id) })
+    } catch {}
+  },
+
+  mergeStamps: async (stampIds, targetAlbumPage, setId) => {
+    try {
+      const result = await api.post('/stamps/merge', { stampIds, targetAlbumPage, setId })
+      const merged = (result as any).data || (result as any)
+      set({ stamps: get().stamps.map((s) => {
+        const updated = merged.find((m: any) => String(m.id) === String(s.id))
+        return updated ? { ...s, ...updated } : s
+      })})
+      get().fetchStamps()
     } catch {}
   },
 

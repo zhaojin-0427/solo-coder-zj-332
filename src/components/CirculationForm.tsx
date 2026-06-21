@@ -32,7 +32,8 @@ export default function CirculationForm({ open, onClose }: CirculationFormProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await createCirculation({ ...form, status: '进行中' })
+    const defaultStatus = form.type === '借出' ? '进行中' : '已完成'
+    await createCirculation({ ...form, status: defaultStatus })
     onClose()
   }
 

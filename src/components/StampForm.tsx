@@ -11,7 +11,7 @@ interface StampFormProps {
 }
 
 export default function StampForm({ open, onClose, stamp }: StampFormProps) {
-  const { themes, createStamp, updateStamp } = useStore()
+  const { themes, sets, createStamp, updateStamp } = useStore()
   const [form, setForm] = useState({
     name: '',
     issueYear: new Date().getFullYear(),
@@ -42,15 +42,17 @@ export default function StampForm({ open, onClose, stamp }: StampFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const submitData: any = { ...form }
+    if (!submitData.setId) {
+      submitData.setId = null
+    }
     if (stamp) {
-      await updateStamp(stamp.id, form)
+      await updateStamp(stamp.id, submitData)
     } else {
-      await createStamp(form)
+      await createStamp(submitData)
     }
     onClose()
   }
-
-  const albumPages = [...new Set(useStore.getState().stamps.map((s) => s.albumPage).filter(Boolean))]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(92,58,30,0.4)' }}>
@@ -146,9 +148,9 @@ export default function StampForm({ open, onClose, stamp }: StampFormProps) {
                 className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2"
                 style={{ borderColor: 'var(--color-beige-dark)' }}
               >
-                <option value="">选择套组</option>
-                {albumPages.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                <option value="">无套组</option>
+                {sets.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>

@@ -96,16 +96,24 @@ export class StampsService {
     return { deleted: true };
   }
 
-  merge(stampIds: number[], targetAlbumPage: string) {
+  merge(stampIds: number[], targetAlbumPage: string, setId?: number) {
     const db = getDb();
     const transaction = db.transaction(() => {
-      const stmt = db.prepare('UPDATE stamps SET album_page = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-      for (const id of stampIds) {
-        stmt.run(targetAlbumPage, id);
+      let stmt: any;
+      if (setId !== undefined && setId !== null) {
+        stmt = db.prepare('UPDATE stamps SET album_page = ?, set_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        for (const id of stampIds) {
+          stmt.run(targetAlbumPage, setId, id);
+        }
+      } else {
+        stmt = db.prepare('UPDATE stamps SET album_page = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        for (const id of stampIds) {
+          stmt.run(targetAlbumPage, id);
+        }
       }
     });
     transaction();
     const placeholders = stampIds.map(() => '?').join(',');
-    return toCamelCase(db.prepare(`SELECT * FROM stamps WHERE id IN (${placeholders})`).all(...stampIds));
+    return toCamelCase(db.prepare(`SELECT s.*, st.name as set_name FROM stamps s LEFT JOIN sets st ON s.set_id = st.id WHERE s.id IN (${placeholders})`).all(...stampIds));
   }
 }

@@ -5,7 +5,7 @@ import StampCard from '@/components/StampCard'
 import StampForm from '@/components/StampForm'
 
 export default function Archive() {
-  const { stamps, themes, stories, circulations, fetchStamps, fetchThemes, fetchStories, fetchCirculations, updateStamp } = useStore()
+  const { stamps, sets, themes, stories, circulations, fetchStamps, fetchSets, fetchThemes, fetchStories, fetchCirculations, updateStamp, mergeStamps } = useStore()
   const [search, setSearch] = useState('')
   const [filterTheme, setFilterTheme] = useState('')
   const [filterCondition, setFilterCondition] = useState('')
@@ -16,13 +16,15 @@ export default function Archive() {
   const [mergeMode, setMergeMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [mergeTarget, setMergeTarget] = useState('')
+  const [mergeSetId, setMergeSetId] = useState('')
 
   useEffect(() => {
     fetchStamps()
+    fetchSets()
     fetchThemes()
     fetchStories()
     fetchCirculations()
-  }, [fetchStamps, fetchThemes, fetchStories, fetchCirculations])
+  }, [fetchStamps, fetchSets, fetchThemes, fetchStories, fetchCirculations])
 
   const albumPages = useMemo(() => [...new Set(stamps.map((s) => s.albumPage).filter(Boolean))], [stamps])
 
@@ -54,12 +56,12 @@ export default function Archive() {
 
   const handleMerge = async () => {
     if (!mergeTarget || selectedIds.length < 2) return
-    for (const id of selectedIds) {
-      await updateStamp(id, { albumPage: mergeTarget })
-    }
+    const setIdNum = mergeSetId ? Number(mergeSetId) : undefined
+    await mergeStamps(selectedIds, mergeTarget, setIdNum as any)
     setSelectedIds([])
     setMergeMode(false)
     setMergeTarget('')
+    setMergeSetId('')
   }
 
   return (
@@ -80,6 +82,17 @@ export default function Archive() {
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
+              <select
+                value={mergeSetId}
+                onChange={(e) => setMergeSetId(e.target.value)}
+                className="px-3 py-2 rounded-lg border text-sm"
+                style={{ borderColor: 'var(--color-beige-dark)' }}
+              >
+                <option value="">不设置套组</option>
+                {sets.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
               <button
                 onClick={handleMerge}
                 disabled={!mergeTarget || selectedIds.length < 2}
@@ -89,7 +102,7 @@ export default function Archive() {
                 确认归并 ({selectedIds.length})
               </button>
               <button
-                onClick={() => { setMergeMode(false); setSelectedIds([]) }}
+                onClick={() => { setMergeMode(false); setSelectedIds([]); setMergeSetId('') }}
                 className="px-4 py-2 rounded-lg text-sm border transition-colors hover:bg-[#F5E6C8]"
                 style={{ borderColor: 'var(--color-beige-dark)', color: 'var(--color-brown)' }}
               >
@@ -240,7 +253,7 @@ export default function Archive() {
                 </div>
                 <div>
                   <span className="text-xs" style={{ color: 'var(--color-brown-light)' }}>套组</span>
-                  <p className="font-medium" style={{ color: 'var(--color-brown)' }}>{detailStamp.setId || '无'}</p>
+                  <p className="font-medium" style={{ color: 'var(--color-brown)' }}>{detailStamp.setName || '无'}</p>
                 </div>
               </div>
 
