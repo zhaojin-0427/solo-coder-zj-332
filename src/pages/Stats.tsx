@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { BookOpen, BookHeart, ArrowLeftRight, Grid3X3, Clock, Mic, MessageSquare, AlertCircle, Users, Heart, UserCheck } from 'lucide-react'
+import { BookOpen, BookHeart, ArrowLeftRight, Grid3X3, Clock, Mic, MessageSquare, AlertCircle, Users, Heart, UserCheck, Shield, Wrench, AlertTriangle, CheckCircle } from 'lucide-react'
 import useStore from '@/store/useStore'
 
 const PIE_COLORS = ['#B8860B', '#5C3A1E', '#2D5016', '#D4A843', '#7A5233', '#8B6508', '#3D6B1E']
 const AUDIO_COLORS = ['#9333EA', '#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#A855F7', '#C084FC']
 const EXPLANATION_COLORS = ['#F97316', '#EA580C', '#DC2626', '#B91C1C', '#9333EA', '#7C3AED', '#6D28D9']
+const RESTORATION_COLORS = ['#DC2626', '#F97316', '#EAB308', '#3B82F6', '#8B5CF6', '#6B7280']
 
 export default function Stats() {
   const { stamps, themes, stories, circulations, exhibitions, audioPackages, stats, fetchStamps, fetchThemes, fetchStories, fetchCirculations, fetchExhibitions, fetchAudioPackages, fetchStats } = useStore()
@@ -146,6 +147,21 @@ export default function Stats() {
     if (stats?.explanationFeedbackDistribution?.length) return stats.explanationFeedbackDistribution
     return []
   }, [stats])
+
+  const riskStampCount = stats?.riskStampCount ?? 0
+  const riskTypeDistribution = useMemo(() => {
+    if (stats?.riskTypeDistribution?.length) return stats.riskTypeDistribution
+    return []
+  }, [stats])
+  const pendingRestorationOrderCount = stats?.pendingRestorationOrderCount ?? 0
+  const overdueRestorationOrderCount = stats?.overdueRestorationOrderCount ?? 0
+  const restorationCompletionRate = stats?.restorationCompletionRate ?? 0
+  const restorationHandlerDistribution = useMemo(() => {
+    if (stats?.restorationHandlerDistribution?.length) return stats.restorationHandlerDistribution
+    return []
+  }, [stats])
+  const totalRestorationAssessments = stats?.totalRestorationAssessments ?? 0
+  const totalRestorationOrders = stats?.totalRestorationOrders ?? 0
 
   return (
     <div>
@@ -638,6 +654,121 @@ export default function Stats() {
                 </Pie>
                 <Tooltip />
               </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无数据</div>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-3 text-sm font-medium" style={{ color: 'var(--color-brown-light)' }}>修复评估与养护</div>
+      <div className="grid grid-cols-6 gap-4 mb-6">
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.15)' }}>
+              <Shield size={20} style={{ color: '#DC2626' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{riskStampCount}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>风险邮品数</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.15)' }}>
+              <AlertTriangle size={20} style={{ color: '#F97316' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{pendingRestorationOrderCount}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>待处理工单</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+              <AlertCircle size={20} style={{ color: '#ef4444' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{overdueRestorationOrderCount}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>逾期工单</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.15)' }}>
+              <CheckCircle size={20} style={{ color: '#22c55e' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{restorationCompletionRate}%</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>修复完成率</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.15)' }}>
+              <Shield size={20} style={{ color: '#F97316' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{totalRestorationAssessments}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>评估总数</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.15)' }}>
+              <Wrench size={20} style={{ color: '#8b5cf6' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{totalRestorationOrders}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>工单总数</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6">
+        <div className="p-5 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>各风险类型占比</h3>
+          {riskTypeDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={riskTypeDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={85}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {riskTypeDistribution.map((_, index) => (
+                    <Cell key={index} fill={RESTORATION_COLORS[index % RESTORATION_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无数据</div>
+          )}
+        </div>
+
+        <div className="p-5 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>按负责人分布的养护任务</h3>
+          {restorationHandlerDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={restorationHandlerDistribution}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#DC2626" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无数据</div>

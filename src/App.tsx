@@ -8,6 +8,7 @@ import Exhibitions from '@/pages/Exhibitions'
 import AudioPackages from '@/pages/AudioPackages'
 import Explanations from '@/pages/Explanations'
 import ExplanationVisits from '@/pages/ExplanationVisits'
+import Restorations from '@/pages/Restorations'
 import Stats from '@/pages/Stats'
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/audio-packages" element={<AudioPackages />} />
           <Route path="/explanations" element={<Explanations />} />
           <Route path="/explanation-visits" element={<ExplanationVisits />} />
+          <Route path="/restorations" element={<Restorations />} />
           <Route path="/stats" element={<Stats />} />
         </Route>
       </Routes>
