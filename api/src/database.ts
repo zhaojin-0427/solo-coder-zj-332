@@ -124,6 +124,71 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_stamp_id ON exhibition_stamps(stamp_id);
     CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_status ON exhibition_stamps(status);
     CREATE INDEX IF NOT EXISTS idx_exhibition_stamps_keeper ON exhibition_stamps(keeper);
+
+    CREATE TABLE IF NOT EXISTS audio_packages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      theme_type TEXT NOT NULL CHECK(theme_type IN ('家庭回忆','节日庆典','长辈故事','邮品讲解','其他')),
+      description TEXT DEFAULT '',
+      target_elderly TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('草稿','制作中','已完成','已归档')) DEFAULT '草稿',
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS audio_package_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      package_id INTEGER NOT NULL REFERENCES audio_packages(id) ON DELETE CASCADE,
+      stamp_id INTEGER REFERENCES stamps(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      audio_url TEXT DEFAULT '',
+      duration INTEGER DEFAULT 0,
+      narrator TEXT DEFAULT '',
+      display_order INTEGER DEFAULT 0,
+      status TEXT NOT NULL CHECK(status IN ('待讲解','讲解中','已完成','需重录')) DEFAULT '待讲解',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS package_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      package_id INTEGER NOT NULL REFERENCES audio_packages(id) ON DELETE CASCADE,
+      item_id INTEGER REFERENCES audio_package_items(id) ON DELETE SET NULL,
+      elderly_person TEXT NOT NULL,
+      feedback_type TEXT NOT NULL CHECK(feedback_type IN ('喜欢','听不懂','想再听','有补充','其他')),
+      rating INTEGER CHECK(rating >= 1 AND rating <= 5) DEFAULT 5,
+      content TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS package_follow_ups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      package_id INTEGER NOT NULL REFERENCES audio_packages(id) ON DELETE CASCADE,
+      item_id INTEGER REFERENCES audio_package_items(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      assignee TEXT NOT NULL,
+      priority TEXT NOT NULL CHECK(priority IN ('高','中','低')) DEFAULT '中',
+      status TEXT NOT NULL CHECK(status IN ('待处理','处理中','已完成')) DEFAULT '待处理',
+      due_date DATE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_audio_packages_status ON audio_packages(status);
+    CREATE INDEX IF NOT EXISTS idx_audio_packages_theme_type ON audio_packages(theme_type);
+    CREATE INDEX IF NOT EXISTS idx_audio_packages_target_elderly ON audio_packages(target_elderly);
+    CREATE INDEX IF NOT EXISTS idx_audio_package_items_package_id ON audio_package_items(package_id);
+    CREATE INDEX IF NOT EXISTS idx_audio_package_items_stamp_id ON audio_package_items(stamp_id);
+    CREATE INDEX IF NOT EXISTS idx_audio_package_items_status ON audio_package_items(status);
+    CREATE INDEX IF NOT EXISTS idx_package_feedback_package_id ON package_feedback(package_id);
+    CREATE INDEX IF NOT EXISTS idx_package_feedback_elderly_person ON package_feedback(elderly_person);
+    CREATE INDEX IF NOT EXISTS idx_package_feedback_feedback_type ON package_feedback(feedback_type);
+    CREATE INDEX IF NOT EXISTS idx_package_follow_ups_package_id ON package_follow_ups(package_id);
+    CREATE INDEX IF NOT EXISTS idx_package_follow_ups_status ON package_follow_ups(status);
+    CREATE INDEX IF NOT EXISTS idx_package_follow_ups_assignee ON package_follow_ups(assignee);
   `);
 
   seedData(db);
@@ -156,6 +221,22 @@ function seedData(db: Database.Database) {
   const insertExhibitionStamp = db.prepare(
     `INSERT INTO exhibition_stamps (exhibition_id, stamp_id, display_role, display_note, expected_borrow_date, expected_return_date, keeper, status, display_narration, memorial_meaning)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertAudioPackage = db.prepare(
+    `INSERT INTO audio_packages (name, theme_type, description, target_elderly, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  );
+  const insertAudioPackageItem = db.prepare(
+    `INSERT INTO audio_package_items (package_id, stamp_id, title, content, audio_url, duration, narrator, display_order, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertPackageFeedback = db.prepare(
+    `INSERT INTO package_feedback (package_id, item_id, elderly_person, feedback_type, rating, content)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  );
+  const insertPackageFollowUp = db.prepare(
+    `INSERT INTO package_follow_ups (package_id, item_id, title, description, assignee, priority, status, due_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const transaction = db.transaction(() => {
@@ -286,6 +367,173 @@ function seedData(db: Database.Database) {
       '暂缓',
       '',
       ''
+    );
+
+    const ap1 = insertAudioPackage.run(
+      '爷爷的故事合集',
+      '长辈故事',
+      '整理爷爷讲述的生平故事，供家人回听',
+      '爷爷',
+      '制作中',
+      '王小明'
+    );
+    const ap2 = insertAudioPackage.run(
+      '2025年春节家庭回忆',
+      '节日庆典',
+      '2025年春节家庭聚会的珍贵录音和故事',
+      '全家',
+      '已完成',
+      '李秀芳'
+    );
+    const ap3 = insertAudioPackage.run(
+      '珍贵邮品讲解',
+      '邮品讲解',
+      '为老人讲解每枚邮票背后的故事',
+      '奶奶',
+      '草稿',
+      '王大明'
+    );
+
+    insertAudioPackageItem.run(
+      ap1.lastInsertRowid,
+      s10.lastInsertRowid,
+      '爷爷与孙中山邮票的故事',
+      '爷爷是辛亥革命研究学者，一生致力于孙中山先生思想的研究。这枚邮票是他1956年在上海旧书摊淘到的，当时花了他半个月的工资。爷爷说每次看到这枚邮票，就想起孙中山先生天下为公的教诲，这是他一生的座右铭。',
+      '/audio/grandpa-sun-yat-sen.mp3',
+      180,
+      '王小明',
+      1,
+      '已完成'
+    );
+    insertAudioPackageItem.run(
+      ap1.lastInsertRowid,
+      s5.lastInsertRowid,
+      '开国大典邮票的记忆',
+      '1999年国庆50周年时，我在北京西单邮局排了两个小时队购买这枚开国大典邮票，当时限量发售，买到后激动不已。那年正值建国50周年大庆，整个北京城都洋溢着喜庆的气氛。',
+      '/audio/grandpa-founding.mp3',
+      150,
+      '王大明',
+      2,
+      '已完成'
+    );
+    insertAudioPackageItem.run(
+      ap1.lastInsertRowid,
+      s3.lastInsertRowid,
+      '兰亭序与父亲的书法情',
+      '这枚兰亭序邮票是为了纪念我父亲80岁寿辰特别购买的，父亲一生酷爱书法，尤其钟爱王羲之。记得小时候每次看父亲练字，他都会给我讲兰亭序的故事，说这是天下第一行书。',
+      '',
+      0,
+      '',
+      3,
+      '待讲解'
+    );
+    insertAudioPackageItem.run(
+      ap2.lastInsertRowid,
+      s7.lastInsertRowid,
+      '2025年春节的团圆饭',
+      '2025年春节，全家人终于聚齐了。年夜饭上，爷爷讲起了他小时候过年的故事，那时候条件艰苦，但年味儿特别浓。奶奶还拿出了她珍藏多年的中秋节邮票，给孩子们讲邮票背后的故事。',
+      '/audio/2025-spring-festival.mp3',
+      240,
+      '李秀芳',
+      1,
+      '已完成'
+    );
+    insertAudioPackageItem.run(
+      ap2.lastInsertRowid,
+      s8.lastInsertRowid,
+      '端午节的龙舟记忆',
+      '在全国集邮展览上与一位武汉邮友交换得到这枚端午节邮票，当时他用端午节邮票换了我多余的建国纪念票。今年春节家庭聚会时，我给孩子们讲了这个交换的故事，他们都听得津津有味。',
+      '/audio/dragon-boat-story.mp3',
+      120,
+      '张建国',
+      2,
+      '已完成'
+    );
+    insertAudioPackageItem.run(
+      ap3.lastInsertRowid,
+      s1.lastInsertRowid,
+      '龙年邮票的故事',
+      '2000年龙年邮票发行当天，我在北京西单邮局排了两个小时队购买，当时限量发售，非常珍贵。那年正是千禧年，大家都说是龙年大吉，所以这枚邮票特别有纪念意义。',
+      '',
+      0,
+      '',
+      1,
+      '待讲解'
+    );
+    insertAudioPackageItem.run(
+      ap3.lastInsertRowid,
+      s6.lastInsertRowid,
+      '天安门邮票的回忆',
+      '这枚天安门邮票是与上海邮友交换得来，虽然品相不太好，但十分稀有珍贵。1959年发行的这枚邮票，见证了新中国成立10周年的历史时刻。',
+      '',
+      0,
+      '',
+      2,
+      '需重录'
+    );
+
+    insertPackageFeedback.run(
+      ap1.lastInsertRowid,
+      1,
+      '爷爷',
+      '喜欢',
+      5,
+      '讲得很好，听完想起了很多往事。'
+    );
+    insertPackageFeedback.run(
+      ap1.lastInsertRowid,
+      2,
+      '爷爷',
+      '想再听',
+      5,
+      '开国大典那段我想再听两遍，那年的记忆太深刻了。'
+    );
+    insertPackageFeedback.run(
+      ap2.lastInsertRowid,
+      4,
+      '奶奶',
+      '有补充',
+      4,
+      '春节那天还有包饺子的趣事，下次可以加上。'
+    );
+    insertPackageFeedback.run(
+      ap2.lastInsertRowid,
+      null,
+      '爷爷',
+      '喜欢',
+      5,
+      '整个资料包做得很好，听着很感动。'
+    );
+
+    insertPackageFollowUp.run(
+      ap1.lastInsertRowid,
+      3,
+      '录制兰亭序讲解',
+      '需要找父亲录制兰亭序邮票的讲解音频，他对这段历史最熟悉。',
+      '王小明',
+      '高',
+      '待处理',
+      '2025-07-15'
+    );
+    insertPackageFollowUp.run(
+      ap3.lastInsertRowid,
+      7,
+      '重录天安门邮票讲解',
+      '上次录音背景噪音太大，需要重新录制。最好找一个安静的环境。',
+      '王大明',
+      '中',
+      '处理中',
+      '2025-07-20'
+    );
+    insertPackageFollowUp.run(
+      ap3.lastInsertRowid,
+      6,
+      '准备龙年邮票讲解稿',
+      '需要提前准备讲解稿，可以结合2000年时的社会背景。',
+      '李秀芳',
+      '低',
+      '已完成',
+      '2025-07-10'
     );
   });
 

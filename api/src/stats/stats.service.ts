@@ -131,6 +131,71 @@ export class StatsService {
       'SELECT * FROM exhibitions ORDER BY created_at DESC LIMIT 5'
     ).all();
 
+    const totalAudioPackages = (db.prepare('SELECT COUNT(*) as cnt FROM audio_packages').get() as any).cnt;
+    const pendingItemsCount = (db.prepare(
+      "SELECT COUNT(*) as cnt FROM audio_package_items WHERE status IN ('待讲解','讲解中','需重录')"
+    ).get() as any).cnt;
+
+    const packageThemeDistributionRaw = db.prepare(
+      `SELECT theme_type, COUNT(*) as count 
+       FROM audio_packages 
+       GROUP BY theme_type
+       ORDER BY count DESC`
+    ).all();
+    const packageThemeDistribution = packageThemeDistributionRaw.map((t: any) => ({
+      name: t.theme_type,
+      value: t.count,
+    }));
+
+    const itemThemeDistributionRaw = db.prepare(
+      `SELECT s.theme, COUNT(*) as count 
+       FROM audio_package_items api
+       INNER JOIN stamps s ON api.stamp_id = s.id
+       GROUP BY s.theme
+       ORDER BY count DESC`
+    ).all();
+    const itemThemeDistribution = itemThemeDistributionRaw.map((t: any) => ({
+      name: t.theme || '未分类',
+      count: t.count,
+    }));
+
+    const feedbackTypeDistributionRaw = db.prepare(
+      `SELECT feedback_type, COUNT(*) as count 
+       FROM package_feedback 
+       GROUP BY feedback_type
+       ORDER BY count DESC`
+    ).all();
+    const feedbackTypeDistribution = feedbackTypeDistributionRaw.map((f: any) => ({
+      name: f.feedback_type,
+      value: f.count,
+    }));
+
+    const feedbackElderlyDistributionRaw = db.prepare(
+      `SELECT elderly_person, COUNT(*) as count 
+       FROM package_feedback 
+       GROUP BY elderly_person
+       ORDER BY count DESC`
+    ).all();
+    const feedbackElderlyDistribution = feedbackElderlyDistributionRaw.map((f: any) => ({
+      name: f.elderly_person,
+      value: f.count,
+    }));
+
+    const followUpStatusDistributionRaw = db.prepare(
+      `SELECT status, COUNT(*) as count 
+       FROM package_follow_ups 
+       GROUP BY status
+       ORDER BY count DESC`
+    ).all();
+    const followUpStatusDistribution = followUpStatusDistributionRaw.map((f: any) => ({
+      name: f.status,
+      value: f.count,
+    }));
+
+    const recentAudioPackages = db.prepare(
+      'SELECT * FROM audio_packages ORDER BY created_at DESC LIMIT 5'
+    ).all();
+
     return toCamelCase({
       totalStamps,
       totalThemes,
@@ -154,6 +219,14 @@ export class StatsService {
       exhibitionUsageByTheme,
       keeperDistribution,
       recentExhibitions,
+      totalAudioPackages,
+      pendingItemsCount,
+      packageThemeDistribution,
+      itemThemeDistribution,
+      feedbackTypeDistribution,
+      feedbackElderlyDistribution,
+      followUpStatusDistribution,
+      recentAudioPackages,
     });
   }
 }

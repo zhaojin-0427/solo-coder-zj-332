@@ -105,6 +105,73 @@ export interface ExhibitionStamp {
   exhibitionStatus?: string
 }
 
+export interface AudioPackage {
+  id: string
+  name: string
+  themeType: string
+  description: string
+  targetElderly: string
+  status: string
+  createdBy: string
+  itemCount: number
+  pendingItemCount: number
+  createdAt: string
+  updatedAt: string
+  items?: AudioPackageItem[]
+  feedback?: PackageFeedback[]
+  followUps?: PackageFollowUp[]
+}
+
+export interface AudioPackageItem {
+  id: string
+  packageId: string
+  stampId: string
+  stampName: string
+  issueYear: number
+  condition: string
+  stampTheme: string
+  title: string
+  content: string
+  audioUrl: string
+  duration: number
+  narrator: string
+  displayOrder: number
+  status: string
+  createdAt: string
+  updatedAt: string
+  packageName?: string
+  packageStatus?: string
+  themeType?: string
+  targetElderly?: string
+}
+
+export interface PackageFeedback {
+  id: string
+  packageId: string
+  itemId: string
+  itemTitle: string
+  elderlyPerson: string
+  feedbackType: string
+  rating: number
+  content: string
+  createdAt: string
+}
+
+export interface PackageFollowUp {
+  id: string
+  packageId: string
+  itemId: string
+  itemTitle: string
+  title: string
+  description: string
+  assignee: string
+  priority: string
+  status: string
+  dueDate: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Stats {
   themeDistribution: { name: string; value: number }[]
   unsortedAlbumPages: { name: string; count: number }[]
@@ -118,6 +185,13 @@ export interface Stats {
   exhibitionThemeDistribution: { name: string; value: number }[]
   exhibitionUsageByTheme: { name: string; count: number }[]
   keeperDistribution: { name: string; value: number }[]
+  totalAudioPackages: number
+  pendingItemsCount: number
+  packageThemeDistribution: { name: string; value: number }[]
+  itemThemeDistribution: { name: string; count: number }[]
+  feedbackTypeDistribution: { name: string; value: number }[]
+  feedbackElderlyDistribution: { name: string; value: number }[]
+  followUpStatusDistribution: { name: string; value: number }[]
 }
 
 interface StoreState {
@@ -130,6 +204,12 @@ interface StoreState {
   currentExhibition: Exhibition | null
   exhibitionStamps: ExhibitionStamp[]
   stampExhibitions: ExhibitionStamp[]
+  audioPackages: AudioPackage[]
+  currentAudioPackage: AudioPackage | null
+  packageItems: AudioPackageItem[]
+  packageFeedback: PackageFeedback[]
+  packageFollowUps: PackageFollowUp[]
+  stampAudioPackages: AudioPackageItem[]
   stats: Stats | null
   loading: boolean
   fetchStamps: () => Promise<void>
@@ -168,6 +248,26 @@ interface StoreState {
   replaceExhibitionStamp: (exhibitionId: string, oldStampId: string, newStampId: string, displayRole?: string, keeper?: string) => Promise<void>
   removeExhibitionStamp: (exhibitionId: string, stampId: string) => Promise<void>
   setCurrentExhibition: (exhibition: Exhibition | null) => void
+  fetchAudioPackages: (query?: Record<string, string>) => Promise<void>
+  fetchAudioPackage: (id: string) => Promise<AudioPackage | undefined>
+  fetchPackageItems: (packageId: string) => Promise<void>
+  fetchPackageFeedback: (packageId: string) => Promise<void>
+  fetchPackageFollowUps: (packageId: string) => Promise<void>
+  fetchStampAudioPackages: (stampId: string) => Promise<void>
+  createAudioPackage: (data: Partial<AudioPackage>) => Promise<AudioPackage | undefined>
+  updateAudioPackage: (id: string, data: Partial<AudioPackage>) => Promise<void>
+  deleteAudioPackage: (id: string) => Promise<void>
+  addPackageItem: (packageId: string, data: Partial<AudioPackageItem>) => Promise<void>
+  updatePackageItem: (packageId: string, itemId: string, data: Partial<AudioPackageItem>) => Promise<void>
+  updatePackageItemStatus: (packageId: string, itemId: string, status: string) => Promise<void>
+  removePackageItem: (packageId: string, itemId: string) => Promise<boolean>
+  addPackageFeedback: (packageId: string, data: Partial<PackageFeedback>) => Promise<void>
+  removePackageFeedback: (packageId: string, feedbackId: string) => Promise<boolean>
+  addPackageFollowUp: (packageId: string, data: Partial<PackageFollowUp>) => Promise<void>
+  updatePackageFollowUp: (packageId: string, followUpId: string, data: Partial<PackageFollowUp>) => Promise<void>
+  updatePackageFollowUpStatus: (packageId: string, followUpId: string, status: string) => Promise<void>
+  removePackageFollowUp: (packageId: string, followUpId: string) => Promise<boolean>
+  setCurrentAudioPackage: (pkg: AudioPackage | null) => void
 }
 
 const useStore = create<StoreState>((set, get) => ({
@@ -180,6 +280,12 @@ const useStore = create<StoreState>((set, get) => ({
   currentExhibition: null,
   exhibitionStamps: [],
   stampExhibitions: [],
+  audioPackages: [],
+  currentAudioPackage: null,
+  packageItems: [],
+  packageFeedback: [],
+  packageFollowUps: [],
+  stampAudioPackages: [],
   stats: null,
   loading: false,
 
@@ -485,6 +591,201 @@ const useStore = create<StoreState>((set, get) => ({
 
   setCurrentExhibition: (exhibition) => {
     set({ currentExhibition: exhibition })
+  },
+
+  fetchAudioPackages: async (query) => {
+    set({ loading: true })
+    try {
+      const params = new URLSearchParams()
+      if (query) {
+        Object.entries(query).forEach(([k, v]) => v && params.append(k, v))
+      }
+      const data = await api.get('/audio-packages', { params })
+      set({ audioPackages: (data as any).data || (data as any) || [], loading: false })
+    } catch {
+      set({ loading: false })
+    }
+  },
+
+  fetchAudioPackage: async (id) => {
+    try {
+      const data = await api.get(`/audio-packages/${id}`)
+      const pkg = (data as any).data || (data as any)
+      set({ currentAudioPackage: pkg })
+      return pkg
+    } catch {}
+  },
+
+  fetchPackageItems: async (packageId) => {
+    try {
+      const data = await api.get(`/audio-packages/${packageId}/items`)
+      set({ packageItems: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchPackageFeedback: async (packageId) => {
+    try {
+      const data = await api.get(`/audio-packages/${packageId}/feedback`)
+      set({ packageFeedback: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchPackageFollowUps: async (packageId) => {
+    try {
+      const data = await api.get(`/audio-packages/${packageId}/follow-ups`)
+      set({ packageFollowUps: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchStampAudioPackages: async (stampId) => {
+    try {
+      const data = await api.get(`/audio-packages/stamps/${stampId}/audio-packages`)
+      set({ stampAudioPackages: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  createAudioPackage: async (data) => {
+    try {
+      const result = await api.post('/audio-packages', data)
+      const pkg = (result as any).data || (result as any)
+      set({ audioPackages: [...get().audioPackages, pkg] })
+      return pkg
+    } catch {}
+  },
+
+  updateAudioPackage: async (id, data) => {
+    try {
+      const result = await api.put(`/audio-packages/${id}`, data)
+      const updated = (result as any).data || (result as any)
+      set({
+        audioPackages: get().audioPackages.map((p) => (p.id === id ? { ...p, ...updated } : p)),
+        currentAudioPackage: get().currentAudioPackage?.id === id ? { ...get().currentAudioPackage, ...updated } : get().currentAudioPackage,
+      })
+    } catch {}
+  },
+
+  deleteAudioPackage: async (id) => {
+    try {
+      await api.delete(`/audio-packages/${id}`)
+      set({
+        audioPackages: get().audioPackages.filter((p) => p.id !== id),
+        currentAudioPackage: get().currentAudioPackage?.id === id ? null : get().currentAudioPackage,
+      })
+    } catch {}
+  },
+
+  addPackageItem: async (packageId, data) => {
+    try {
+      const result = await api.post(`/audio-packages/${packageId}/items`, data)
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageItems: pkg?.items || [],
+      })
+      get().fetchAudioPackages()
+    } catch {}
+  },
+
+  updatePackageItem: async (packageId, itemId, data) => {
+    try {
+      const result = await api.put(`/audio-packages/${packageId}/items/${itemId}`, data)
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageItems: pkg?.items || [],
+      })
+    } catch {}
+  },
+
+  updatePackageItemStatus: async (packageId, itemId, status) => {
+    try {
+      const result = await api.put(`/audio-packages/${packageId}/items/${itemId}/status`, { status })
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageItems: pkg?.items || [],
+      })
+      get().fetchAudioPackages()
+    } catch {}
+  },
+
+  removePackageItem: async (packageId, itemId) => {
+    try {
+      const result = await api.delete(`/audio-packages/${packageId}/items/${itemId}`)
+      get().fetchAudioPackage(packageId)
+      get().fetchAudioPackages()
+      return result as boolean
+    } catch {
+      return false
+    }
+  },
+
+  addPackageFeedback: async (packageId, data) => {
+    try {
+      const result = await api.post(`/audio-packages/${packageId}/feedback`, data)
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageFeedback: pkg?.feedback || [],
+      })
+    } catch {}
+  },
+
+  removePackageFeedback: async (packageId, feedbackId) => {
+    try {
+      const result = await api.delete(`/audio-packages/${packageId}/feedback/${feedbackId}`)
+      get().fetchAudioPackage(packageId)
+      return result as boolean
+    } catch {
+      return false
+    }
+  },
+
+  addPackageFollowUp: async (packageId, data) => {
+    try {
+      const result = await api.post(`/audio-packages/${packageId}/follow-ups`, data)
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageFollowUps: pkg?.followUps || [],
+      })
+    } catch {}
+  },
+
+  updatePackageFollowUp: async (packageId, followUpId, data) => {
+    try {
+      const result = await api.put(`/audio-packages/${packageId}/follow-ups/${followUpId}`, data)
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageFollowUps: pkg?.followUps || [],
+      })
+    } catch {}
+  },
+
+  updatePackageFollowUpStatus: async (packageId, followUpId, status) => {
+    try {
+      const result = await api.put(`/audio-packages/${packageId}/follow-ups/${followUpId}/status`, { status })
+      const pkg = (result as any).data || (result as any)
+      set({
+        currentAudioPackage: pkg,
+        packageFollowUps: pkg?.followUps || [],
+      })
+    } catch {}
+  },
+
+  removePackageFollowUp: async (packageId, followUpId) => {
+    try {
+      const result = await api.delete(`/audio-packages/${packageId}/follow-ups/${followUpId}`)
+      get().fetchAudioPackage(packageId)
+      return result as boolean
+    } catch {
+      return false
+    }
+  },
+
+  setCurrentAudioPackage: (pkg) => {
+    set({ currentAudioPackage: pkg })
   },
 }))
 
