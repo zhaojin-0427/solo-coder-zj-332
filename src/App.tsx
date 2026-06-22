@@ -6,6 +6,8 @@ import Stories from '@/pages/Stories'
 import Circulation from '@/pages/Circulation'
 import Exhibitions from '@/pages/Exhibitions'
 import AudioPackages from '@/pages/AudioPackages'
+import Explanations from '@/pages/Explanations'
+import ExplanationVisits from '@/pages/ExplanationVisits'
 import Stats from '@/pages/Stats'
 
 export default function App() {
@@ -20,6 +22,8 @@ export default function App() {
           <Route path="/circulation" element={<Circulation />} />
           <Route path="/exhibitions" element={<Exhibitions />} />
           <Route path="/audio-packages" element={<AudioPackages />} />
+          <Route path="/explanations" element={<Explanations />} />
+          <Route path="/explanation-visits" element={<ExplanationVisits />} />
           <Route path="/stats" element={<Stats />} />
         </Route>
       </Routes>

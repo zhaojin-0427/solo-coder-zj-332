@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { BookOpen, BookHeart, ArrowLeftRight, Grid3X3, Clock, Mic, MessageSquare, AlertCircle } from 'lucide-react'
+import { BookOpen, BookHeart, ArrowLeftRight, Grid3X3, Clock, Mic, MessageSquare, AlertCircle, Users, Heart, UserCheck } from 'lucide-react'
 import useStore from '@/store/useStore'
 
 const PIE_COLORS = ['#B8860B', '#5C3A1E', '#2D5016', '#D4A843', '#7A5233', '#8B6508', '#3D6B1E']
 const AUDIO_COLORS = ['#9333EA', '#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95', '#A855F7', '#C084FC']
+const EXPLANATION_COLORS = ['#F97316', '#EA580C', '#DC2626', '#B91C1C', '#9333EA', '#7C3AED', '#6D28D9']
 
 export default function Stats() {
   const { stamps, themes, stories, circulations, exhibitions, audioPackages, stats, fetchStamps, fetchThemes, fetchStories, fetchCirculations, fetchExhibitions, fetchAudioPackages, fetchStats } = useStore()
@@ -127,11 +128,31 @@ export default function Stats() {
   const totalStories = stats?.totalStories ?? stories.length
   const activeCirculations = stats?.activeCirculations ?? circulations.filter((c) => c.status === '进行中').length
 
+  const totalExplanations = stats?.totalExplanations ?? 0
+  const pendingVisitsCount = stats?.pendingVisitsCount ?? 0
+  const explanationFollowUpCount = stats?.explanationFollowUpCount ?? 0
+
+  const explanationThemeDistribution = useMemo(() => {
+    if (stats?.explanationThemeDistribution?.length) return stats.explanationThemeDistribution
+    return []
+  }, [stats])
+
+  const explanationFrequencyByTheme = useMemo(() => {
+    if (stats?.explanationFrequencyByTheme?.length) return stats.explanationFrequencyByTheme
+    return []
+  }, [stats])
+
+  const explanationFeedbackDistribution = useMemo(() => {
+    if (stats?.explanationFeedbackDistribution?.length) return stats.explanationFeedbackDistribution
+    return []
+  }, [stats])
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>统计</h2>
 
-      <div className="grid grid-cols-7 gap-4 mb-6">
+      <div className="mb-3 text-sm font-medium" style={{ color: 'var(--color-brown-light)' }}>核心数据</div>
+      <div className="grid grid-cols-5 gap-4 mb-6">
         <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(184,134,11,0.15)' }}>
@@ -187,6 +208,10 @@ export default function Stats() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mb-3 text-sm font-medium" style={{ color: 'var(--color-brown-light)' }}>回听资料包</div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(147,51,234,0.15)' }}>
@@ -206,6 +231,82 @@ export default function Stats() {
             <div>
               <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{pendingItemsCount}</p>
               <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>待讲解条目</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.15)' }}>
+              <MessageSquare size={20} style={{ color: '#22c55e' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>
+                {stats?.feedbackTypeDistribution?.reduce((s: number, i: any) => s + (i.value || 0), 0) || 0}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>资料包反馈</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-3 text-sm font-medium" style={{ color: 'var(--color-brown-light)' }}>跨代讲解与回访</div>
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.15)' }}>
+              <BookHeart size={20} style={{ color: '#F97316' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{totalExplanations}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>讲解计划总数</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+              <AlertCircle size={20} style={{ color: '#ef4444' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{pendingVisitsCount}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>待回访数量</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.15)' }}>
+              <Users size={20} style={{ color: '#8b5cf6' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>
+                {explanationFeedbackDistribution.reduce((s: number, i: any) => s + (i.value || 0), 0)}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>老人反馈总数</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(14,165,233,0.15)' }}>
+              <Heart size={20} style={{ color: '#0ea5e9' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>{explanationFollowUpCount}</p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>反馈转待跟进</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
+              <UserCheck size={20} style={{ color: '#10b981' }} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-brown)' }}>
+                {totalExplanations > 0 ? Math.round((explanationFeedbackDistribution.reduce((s: number, i: any) => s + (i.value || 0), 0) / (totalExplanations || 1)) * 10) / 10 : 0}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--color-brown-light)' }}>平均反馈/计划</p>
             </div>
           </div>
         </div>
@@ -463,6 +564,76 @@ export default function Stats() {
                 >
                   {followUpStatusDistribution.map((_, index) => (
                     <Cell key={index} fill={AUDIO_COLORS[index % AUDIO_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无数据</div>
+          )}
+        </div>
+
+        <div className="p-5 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>讲解主题分布</h3>
+          {explanationThemeDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={explanationThemeDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={85}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {explanationThemeDistribution.map((_, index) => (
+                    <Cell key={index} fill={EXPLANATION_COLORS[index % EXPLANATION_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无数据</div>
+          )}
+        </div>
+
+        <div className="p-5 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>讲解频次（按主题）</h3>
+          {explanationFrequencyByTheme.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={explanationFrequencyByTheme}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="count" fill="#F97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: 'var(--color-brown-light)' }}>暂无数据</div>
+          )}
+        </div>
+
+        <div className="p-5 rounded-lg border" style={{ borderColor: 'var(--color-beige-dark)', background: '#FFFBF0' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-brown)' }}>老人反馈类型分布（讲解）</h3>
+          {explanationFeedbackDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={explanationFeedbackDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={85}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {explanationFeedbackDistribution.map((_, index) => (
+                    <Cell key={index} fill={EXPLANATION_COLORS[index % EXPLANATION_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />

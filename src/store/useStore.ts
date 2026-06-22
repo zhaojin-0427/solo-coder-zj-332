@@ -172,6 +172,82 @@ export interface PackageFollowUp {
   updatedAt: string
 }
 
+export interface Explanation {
+  id: string
+  title: string
+  themeType: string
+  participants: string
+  targetElderly: string
+  planDate: string
+  keyPoints: string
+  familyReminder: string
+  status: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  stampCount?: number
+  feedbackCount?: number
+  followUpCount?: number
+  stamps?: ExplanationStamp[]
+  feedback?: ExplanationFeedback[]
+  followUps?: ExplanationFollowUp[]
+  visits?: ExplanationVisit[]
+}
+
+export interface ExplanationStamp {
+  id: string
+  explanationId: string
+  stampId: string
+  stampName?: string
+  issueYear?: number
+  stampTheme?: string
+  stampCondition?: string
+  stampSource?: string
+  albumPage?: string
+  imageUrl?: string
+  stampExcerpt: string
+  storyExcerpt: string
+  audioExcerpt: string
+  createdAt: string
+}
+
+export interface ExplanationFeedback {
+  id: string
+  explanationId: string
+  elderlyPerson: string
+  feedbackType: string
+  content: string
+  createdAt: string
+}
+
+export interface ExplanationFollowUp {
+  id: string
+  explanationId: string
+  feedbackId?: string
+  feedbackElderly?: string
+  feedbackTypeSource?: string
+  title: string
+  description: string
+  assignee: string
+  priority: string
+  status: string
+  dueDate: string
+  source: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExplanationVisit {
+  id: string
+  explanationId: string
+  visitor: string
+  visitDate: string
+  visitNote: string
+  elderlyResponse: string
+  nextPlan: string
+  createdAt: string
+}
+
 export interface Stats {
   themeDistribution: { name: string; value: number }[]
   unsortedAlbumPages: { name: string; count: number }[]
@@ -192,6 +268,12 @@ export interface Stats {
   feedbackTypeDistribution: { name: string; value: number }[]
   feedbackElderlyDistribution: { name: string; value: number }[]
   followUpStatusDistribution: { name: string; value: number }[]
+  totalExplanations: number
+  pendingVisitsCount: number
+  explanationThemeDistribution: { name: string; value: number }[]
+  explanationFrequencyByTheme: { name: string; count: number }[]
+  explanationFeedbackDistribution: { name: string; value: number }[]
+  explanationFollowUpCount: number
 }
 
 interface StoreState {
@@ -210,6 +292,13 @@ interface StoreState {
   packageFeedback: PackageFeedback[]
   packageFollowUps: PackageFollowUp[]
   stampAudioPackages: AudioPackageItem[]
+  explanations: Explanation[]
+  currentExplanation: Explanation | null
+  explanationStamps: ExplanationStamp[]
+  explanationFeedback: ExplanationFeedback[]
+  explanationFollowUps: ExplanationFollowUp[]
+  explanationVisits: ExplanationVisit[]
+  pendingVisits: Explanation[]
   stats: Stats | null
   loading: boolean
   fetchStamps: () => Promise<void>
@@ -268,6 +357,30 @@ interface StoreState {
   updatePackageFollowUpStatus: (packageId: string, followUpId: string, status: string) => Promise<void>
   removePackageFollowUp: (packageId: string, followUpId: string) => Promise<boolean>
   setCurrentAudioPackage: (pkg: AudioPackage | null) => void
+  fetchExplanations: (query?: Record<string, string>) => Promise<void>
+  fetchPendingVisits: (query?: Record<string, string>) => Promise<void>
+  fetchExplanation: (id: string) => Promise<Explanation | undefined>
+  fetchExplanationStamps: (explanationId: string) => Promise<void>
+  fetchExplanationFeedback: (explanationId: string) => Promise<void>
+  fetchExplanationFollowUps: (explanationId: string) => Promise<void>
+  fetchExplanationVisits: (explanationId: string) => Promise<void>
+  createExplanation: (data: Partial<Explanation> & { stamps?: any[] }) => Promise<Explanation | undefined>
+  updateExplanation: (id: string, data: Partial<Explanation>) => Promise<void>
+  deleteExplanation: (id: string) => Promise<void>
+  updateExplanationStatus: (id: string, status: string) => Promise<void>
+  addExplanationStamp: (explanationId: string, data: any) => Promise<void>
+  updateExplanationStamp: (explanationId: string, stampId: string, data: any) => Promise<void>
+  removeExplanationStamp: (explanationId: string, stampId: string) => Promise<boolean>
+  addExplanationFeedback: (explanationId: string, data: any) => Promise<void>
+  removeExplanationFeedback: (explanationId: string, feedbackId: string) => Promise<boolean>
+  convertFeedbackToFollowUp: (explanationId: string, feedbackId: string, data: any) => Promise<void>
+  appendFeedbackToStory: (explanationId: string, feedbackId: string, data?: any) => Promise<void>
+  addExplanationFollowUp: (explanationId: string, data: any) => Promise<void>
+  updateExplanationFollowUp: (explanationId: string, followUpId: string, data: any) => Promise<void>
+  updateExplanationFollowUpStatus: (explanationId: string, followUpId: string, status: string) => Promise<void>
+  removeExplanationFollowUp: (explanationId: string, followUpId: string) => Promise<boolean>
+  addExplanationVisit: (explanationId: string, data: any) => Promise<void>
+  setCurrentExplanation: (exp: Explanation | null) => void
 }
 
 const useStore = create<StoreState>((set, get) => ({
@@ -286,6 +399,13 @@ const useStore = create<StoreState>((set, get) => ({
   packageFeedback: [],
   packageFollowUps: [],
   stampAudioPackages: [],
+  explanations: [],
+  currentExplanation: null,
+  explanationStamps: [],
+  explanationFeedback: [],
+  explanationFollowUps: [],
+  explanationVisits: [],
+  pendingVisits: [],
   stats: null,
   loading: false,
 
@@ -714,7 +834,7 @@ const useStore = create<StoreState>((set, get) => ({
       const result = await api.delete(`/audio-packages/${packageId}/items/${itemId}`)
       get().fetchAudioPackage(packageId)
       get().fetchAudioPackages()
-      return result as boolean
+      return !!(result as any)
     } catch {
       return false
     }
@@ -735,7 +855,7 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       const result = await api.delete(`/audio-packages/${packageId}/feedback/${feedbackId}`)
       get().fetchAudioPackage(packageId)
-      return result as boolean
+      return !!(result as any)
     } catch {
       return false
     }
@@ -778,7 +898,7 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       const result = await api.delete(`/audio-packages/${packageId}/follow-ups/${followUpId}`)
       get().fetchAudioPackage(packageId)
-      return result as boolean
+      return !!(result as any)
     } catch {
       return false
     }
@@ -786,6 +906,255 @@ const useStore = create<StoreState>((set, get) => ({
 
   setCurrentAudioPackage: (pkg) => {
     set({ currentAudioPackage: pkg })
+  },
+
+  fetchExplanations: async (query) => {
+    set({ loading: true })
+    try {
+      const params = new URLSearchParams()
+      if (query) {
+        Object.entries(query).forEach(([k, v]) => v && params.append(k, v))
+      }
+      const data = await api.get('/explanations', { params })
+      set({ explanations: (data as any).data || (data as any) || [], loading: false })
+    } catch {
+      set({ loading: false })
+    }
+  },
+
+  fetchPendingVisits: async (query) => {
+    set({ loading: true })
+    try {
+      const params = new URLSearchParams()
+      if (query) {
+        Object.entries(query).forEach(([k, v]) => v && params.append(k, v))
+      }
+      const data = await api.get('/explanations/pending-visits', { params })
+      set({ pendingVisits: (data as any).data || (data as any) || [], loading: false })
+    } catch {
+      set({ loading: false })
+    }
+  },
+
+  fetchExplanation: async (id) => {
+    try {
+      const data = await api.get(`/explanations/${id}`)
+      const exp = (data as any).data || (data as any)
+      set({
+        currentExplanation: exp,
+        explanationStamps: exp?.stamps || [],
+        explanationFeedback: exp?.feedback || [],
+        explanationFollowUps: exp?.followUps || [],
+        explanationVisits: exp?.visits || [],
+      })
+      return exp
+    } catch {}
+  },
+
+  fetchExplanationStamps: async (explanationId) => {
+    try {
+      const data = await api.get(`/explanations/${explanationId}/stamps`)
+      set({ explanationStamps: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchExplanationFeedback: async (explanationId) => {
+    try {
+      const data = await api.get(`/explanations/${explanationId}/feedback`)
+      set({ explanationFeedback: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchExplanationFollowUps: async (explanationId) => {
+    try {
+      const data = await api.get(`/explanations/${explanationId}/follow-ups`)
+      set({ explanationFollowUps: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  fetchExplanationVisits: async (explanationId) => {
+    try {
+      const data = await api.get(`/explanations/${explanationId}/visits`)
+      set({ explanationVisits: (data as any).data || (data as any) || [] })
+    } catch {}
+  },
+
+  createExplanation: async (data) => {
+    try {
+      const result = await api.post('/explanations', data)
+      const exp = (result as any).data || (result as any)
+      set({ explanations: [...get().explanations, exp] })
+      return exp
+    } catch {}
+  },
+
+  updateExplanation: async (id, data) => {
+    try {
+      const result = await api.put(`/explanations/${id}`, data)
+      const updated = (result as any).data || (result as any)
+      set({
+        explanations: get().explanations.map((e) => (e.id === id ? { ...e, ...updated } : e)),
+        currentExplanation: get().currentExplanation?.id === id ? { ...get().currentExplanation, ...updated } : get().currentExplanation,
+      })
+    } catch {}
+  },
+
+  deleteExplanation: async (id) => {
+    try {
+      await api.delete(`/explanations/${id}`)
+      set({
+        explanations: get().explanations.filter((e) => e.id !== id),
+        currentExplanation: get().currentExplanation?.id === id ? null : get().currentExplanation,
+      })
+    } catch {}
+  },
+
+  updateExplanationStatus: async (id, status) => {
+    try {
+      const result = await api.put(`/explanations/${id}/status`, { status })
+      const updated = (result as any).data || (result as any)
+      set({
+        explanations: get().explanations.map((e) => (e.id === id ? { ...e, ...updated } : e)),
+        currentExplanation: get().currentExplanation?.id === id ? { ...get().currentExplanation, ...updated } : get().currentExplanation,
+      })
+    } catch {}
+  },
+
+  addExplanationStamp: async (explanationId, data) => {
+    try {
+      const result = await api.post(`/explanations/${explanationId}/stamps`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationStamps: exp?.stamps || [],
+      })
+      get().fetchExplanations()
+    } catch {}
+  },
+
+  updateExplanationStamp: async (explanationId, stampId, data) => {
+    try {
+      const result = await api.put(`/explanations/${explanationId}/stamps/${stampId}`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationStamps: exp?.stamps || [],
+      })
+    } catch {}
+  },
+
+  removeExplanationStamp: async (explanationId, stampId) => {
+    try {
+      const result = await api.delete(`/explanations/${explanationId}/stamps/${stampId}`)
+      get().fetchExplanation(explanationId)
+      get().fetchExplanations()
+      return !!(result as any)
+    } catch {
+      return false
+    }
+  },
+
+  addExplanationFeedback: async (explanationId, data) => {
+    try {
+      const result = await api.post(`/explanations/${explanationId}/feedback`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationFeedback: exp?.feedback || [],
+      })
+    } catch {}
+  },
+
+  removeExplanationFeedback: async (explanationId, feedbackId) => {
+    try {
+      const result = await api.delete(`/explanations/${explanationId}/feedback/${feedbackId}`)
+      get().fetchExplanation(explanationId)
+      return !!(result as any)
+    } catch {
+      return false
+    }
+  },
+
+  convertFeedbackToFollowUp: async (explanationId, feedbackId, data) => {
+    try {
+      const result = await api.post(`/explanations/${explanationId}/feedback/${feedbackId}/convert-follow-up`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationFollowUps: exp?.followUps || [],
+      })
+    } catch {}
+  },
+
+  appendFeedbackToStory: async (explanationId, feedbackId, data) => {
+    try {
+      const result = await api.post(`/explanations/${explanationId}/feedback/${feedbackId}/append-story`, data || {})
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+      })
+      get().fetchStories()
+    } catch {}
+  },
+
+  addExplanationFollowUp: async (explanationId, data) => {
+    try {
+      const result = await api.post(`/explanations/${explanationId}/follow-ups`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationFollowUps: exp?.followUps || [],
+      })
+    } catch {}
+  },
+
+  updateExplanationFollowUp: async (explanationId, followUpId, data) => {
+    try {
+      const result = await api.put(`/explanations/${explanationId}/follow-ups/${followUpId}`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationFollowUps: exp?.followUps || [],
+      })
+    } catch {}
+  },
+
+  updateExplanationFollowUpStatus: async (explanationId, followUpId, status) => {
+    try {
+      const result = await api.put(`/explanations/${explanationId}/follow-ups/${followUpId}/status`, { status })
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationFollowUps: exp?.followUps || [],
+      })
+    } catch {}
+  },
+
+  removeExplanationFollowUp: async (explanationId, followUpId) => {
+    try {
+      const result = await api.delete(`/explanations/${explanationId}/follow-ups/${followUpId}`)
+      get().fetchExplanation(explanationId)
+      return !!(result as any)
+    } catch {
+      return false
+    }
+  },
+
+  addExplanationVisit: async (explanationId, data) => {
+    try {
+      const result = await api.post(`/explanations/${explanationId}/visits`, data)
+      const exp = (result as any).data || (result as any)
+      set({
+        currentExplanation: exp,
+        explanationVisits: exp?.visits || [],
+      })
+      get().fetchExplanations()
+      get().fetchPendingVisits()
+    } catch {}
+  },
+
+  setCurrentExplanation: (exp) => {
+    set({ currentExplanation: exp })
   },
 }))
 

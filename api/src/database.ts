@@ -189,6 +189,79 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_package_follow_ups_package_id ON package_follow_ups(package_id);
     CREATE INDEX IF NOT EXISTS idx_package_follow_ups_status ON package_follow_ups(status);
     CREATE INDEX IF NOT EXISTS idx_package_follow_ups_assignee ON package_follow_ups(assignee);
+
+    CREATE TABLE IF NOT EXISTS explanations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      theme_type TEXT NOT NULL CHECK(theme_type IN ('家庭回忆','节日庆典','长辈故事','邮品讲解','其他')),
+      participants TEXT NOT NULL DEFAULT '',
+      target_elderly TEXT NOT NULL,
+      plan_date DATE NOT NULL,
+      key_points TEXT NOT NULL DEFAULT '',
+      family_reminder TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL CHECK(status IN ('待讲解','进行中','已完成','待回访','已回访')) DEFAULT '待讲解',
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS explanation_stamps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      explanation_id INTEGER NOT NULL REFERENCES explanations(id) ON DELETE CASCADE,
+      stamp_id INTEGER REFERENCES stamps(id) ON DELETE SET NULL,
+      stamp_excerpt TEXT NOT NULL DEFAULT '',
+      story_excerpt TEXT NOT NULL DEFAULT '',
+      audio_excerpt TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS explanation_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      explanation_id INTEGER NOT NULL REFERENCES explanations(id) ON DELETE CASCADE,
+      elderly_person TEXT NOT NULL,
+      feedback_type TEXT NOT NULL CHECK(feedback_type IN ('听懂了','还想补充','需要再次讲解','其他')),
+      content TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS explanation_follow_ups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      explanation_id INTEGER NOT NULL REFERENCES explanations(id) ON DELETE CASCADE,
+      feedback_id INTEGER REFERENCES explanation_feedback(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      assignee TEXT NOT NULL,
+      priority TEXT NOT NULL CHECK(priority IN ('高','中','低')) DEFAULT '中',
+      status TEXT NOT NULL CHECK(status IN ('待处理','处理中','已完成')) DEFAULT '待处理',
+      due_date DATE,
+      source TEXT NOT NULL CHECK(source IN ('讲解创建','反馈转换')) DEFAULT '讲解创建',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS explanation_visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      explanation_id INTEGER NOT NULL REFERENCES explanations(id) ON DELETE CASCADE,
+      visitor TEXT NOT NULL,
+      visit_date DATE NOT NULL,
+      visit_note TEXT NOT NULL DEFAULT '',
+      elderly_response TEXT NOT NULL DEFAULT '',
+      next_plan TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_explanations_status ON explanations(status);
+    CREATE INDEX IF NOT EXISTS idx_explanations_theme_type ON explanations(theme_type);
+    CREATE INDEX IF NOT EXISTS idx_explanations_target_elderly ON explanations(target_elderly);
+    CREATE INDEX IF NOT EXISTS idx_explanations_plan_date ON explanations(plan_date);
+    CREATE INDEX IF NOT EXISTS idx_explanation_stamps_explanation_id ON explanation_stamps(explanation_id);
+    CREATE INDEX IF NOT EXISTS idx_explanation_stamps_stamp_id ON explanation_stamps(stamp_id);
+    CREATE INDEX IF NOT EXISTS idx_explanation_feedback_explanation_id ON explanation_feedback(explanation_id);
+    CREATE INDEX IF NOT EXISTS idx_explanation_feedback_feedback_type ON explanation_feedback(feedback_type);
+    CREATE INDEX IF NOT EXISTS idx_explanation_follow_ups_explanation_id ON explanation_follow_ups(explanation_id);
+    CREATE INDEX IF NOT EXISTS idx_explanation_follow_ups_status ON explanation_follow_ups(status);
+    CREATE INDEX IF NOT EXISTS idx_explanation_follow_ups_assignee ON explanation_follow_ups(assignee);
+    CREATE INDEX IF NOT EXISTS idx_explanation_visits_explanation_id ON explanation_visits(explanation_id);
   `);
 
   seedData(db);
@@ -534,6 +607,108 @@ function seedData(db: Database.Database) {
       '低',
       '已完成',
       '2025-07-10'
+    );
+
+    const insertExplanation = db.prepare(
+      `INSERT INTO explanations (title, theme_type, participants, target_elderly, plan_date, key_points, family_reminder, status, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const insertExplanationStamp = db.prepare(
+      `INSERT INTO explanation_stamps (explanation_id, stamp_id, stamp_excerpt, story_excerpt, audio_excerpt)
+       VALUES (?, ?, ?, ?, ?)`
+    );
+    const insertExplanationFeedback = db.prepare(
+      `INSERT INTO explanation_feedback (explanation_id, elderly_person, feedback_type, content)
+       VALUES (?, ?, ?, ?)`
+    );
+    const insertExplanationFollowUp = db.prepare(
+      `INSERT INTO explanation_follow_ups (explanation_id, feedback_id, title, description, assignee, priority, status, due_date, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const insertExplanationVisit = db.prepare(
+      `INSERT INTO explanation_visits (explanation_id, visitor, visit_date, visit_note, elderly_response, next_plan)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    );
+
+    const ex1 = insertExplanation.run(
+      '爷爷的龙年邮票故事',
+      '长辈故事',
+      '王小明,李秀芳,王大明',
+      '爷爷',
+      '2025-06-25',
+      '重点讲解龙年邮票的发行背景、千禧年的特殊意义、爷爷当年排队购买的经历',
+      '提前准备好放大镜，让爷爷能看清邮票细节；准备好茶水和舒适的座椅',
+      '待回访',
+      '王小明'
+    );
+    const ex2 = insertExplanation.run(
+      '端午节传统习俗讲解',
+      '节日庆典',
+      '张建国,李秀芳',
+      '奶奶',
+      '2025-06-28',
+      '讲解端午节的由来、屈原的故事、赛龙舟和吃粽子的习俗',
+      '可以准备一些粽子作为讲解时的小点心',
+      '待讲解',
+      '李秀芳'
+    );
+    const ex3 = insertExplanation.run(
+      '开国大典邮票历史',
+      '历史事件',
+      '王小明,王大明',
+      '爷爷',
+      '2025-07-01',
+      '结合建国50周年背景，讲述开国大典邮票的设计理念和历史价值',
+      '准备好相关历史照片辅助讲解',
+      '已完成',
+      '王大明'
+    );
+    const ex4 = insertExplanation.run(
+      '兰亭序书法艺术',
+      '邮品讲解',
+      '李秀芳',
+      '父亲',
+      '2025-07-05',
+      '讲解王羲之与兰亭序的故事、书法艺术特点、邮票设计特色',
+      '准备笔墨纸砚让父亲可以现场书写',
+      '已回访',
+      '王小明'
+    );
+
+    insertExplanationStamp.run(ex1.lastInsertRowid, s1.lastInsertRowid,
+      '2000年庚辰年龙年邮票，生肖文化主题，品相完好',
+      '2000年龙年邮票发行当天在北京西单邮局排队两小时购买，千禧年特别纪念',
+      '回听资料包「珍贵邮品讲解」- 龙年邮票的故事'
+    );
+    insertExplanationStamp.run(ex2.lastInsertRowid, s8.lastInsertRowid,
+      '2001年端午节邮票，传统节日主题，与武汉邮友交换获得',
+      '在全国集邮展览上与武汉邮友交换得来，讲述交换的趣事',
+      '回听资料包「2025年春节家庭回忆」- 端午节的龙舟记忆'
+    );
+    insertExplanationStamp.run(ex3.lastInsertRowid, s5.lastInsertRowid,
+      '1999年开国大典邮票，国庆纪念主题',
+      '1999年国庆50周年时在北京排队一整天购买，激动不已',
+      '回听资料包「爷爷的故事合集」- 开国大典邮票的记忆'
+    );
+    insertExplanationStamp.run(ex4.lastInsertRowid, s3.lastInsertRowid,
+      '2010年兰亭序邮票，书法艺术主题',
+      '为纪念父亲80岁寿辰特别购买，父亲一生酷爱书法',
+      '回听资料包「爷爷的故事合集」- 兰亭序与父亲的书法情'
+    );
+
+    insertExplanationFeedback.run(ex3.lastInsertRowid, '爷爷', '听懂了', '讲得很好，我想起了当年建国50周年的盛况。');
+    insertExplanationFeedback.run(ex3.lastInsertRowid, '爷爷', '还想补充', '当年还有群众游行，我也在现场，改天详细讲给你们听。');
+    insertExplanationFeedback.run(ex4.lastInsertRowid, '父亲', '听懂了', '兰亭序的故事讲得不错，我也想再看看那枚邮票。');
+    insertExplanationFeedback.run(ex1.lastInsertRowid, '爷爷', '需要再次讲解', '有些地方没听清，下次再给我讲讲千禧年的事情。');
+
+    insertExplanationFollowUp.run(ex1.lastInsertRowid, 4, '再次讲解龙年邮票千禧年部分', '爷爷没听清千禧年的社会背景，需要准备更详细的资料再次讲解。', '王小明', '高', '待处理', '2025-07-10', '反馈转换');
+    insertExplanationFollowUp.run(ex3.lastInsertRowid, 2, '记录爷爷的群众游行经历', '爷爷说他当年也在开国大典游行现场，需要找时间详细记录下来。', '李秀芳', '中', '待处理', '2025-07-15', '反馈转换');
+    insertExplanationFollowUp.run(ex2.lastInsertRowid, null, '准备讲解辅助材料', '需要打印端午节相关的历史图片和屈原的故事。', '张建国', '低', '已完成', '2025-06-27', '讲解创建');
+
+    insertExplanationVisit.run(ex4.lastInsertRowid, '王小明', '2025-07-06',
+      '回访了父亲，他对兰亭序的讲解很满意，还当场书写了"兰亭序"三个字。',
+      '父亲说讲解唤起了他很多年轻时练字的回忆，非常开心。',
+      '计划下个月再安排一次书法主题的讲解，并邀请父亲现场教学。'
     );
   });
 

@@ -196,6 +196,52 @@ export class StatsService {
       'SELECT * FROM audio_packages ORDER BY created_at DESC LIMIT 5'
     ).all();
 
+    const totalExplanations = (db.prepare('SELECT COUNT(*) as cnt FROM explanations').get() as any).cnt;
+    const pendingVisitsCount = (db.prepare(
+      "SELECT COUNT(*) as cnt FROM explanations WHERE status = '待回访'"
+    ).get() as any).cnt;
+
+    const explanationThemeDistributionRaw = db.prepare(
+      `SELECT theme_type, COUNT(*) as count 
+       FROM explanations 
+       GROUP BY theme_type
+       ORDER BY count DESC`
+    ).all();
+    const explanationThemeDistribution = explanationThemeDistributionRaw.map((t: any) => ({
+      name: t.theme_type,
+      value: t.count,
+    }));
+
+    const explanationFrequencyByThemeRaw = db.prepare(
+      `SELECT theme_type, COUNT(*) as count 
+       FROM explanations 
+       GROUP BY theme_type
+       ORDER BY count DESC`
+    ).all();
+    const explanationFrequencyByTheme = explanationFrequencyByThemeRaw.map((t: any) => ({
+      name: t.theme_type,
+      count: t.count,
+    }));
+
+    const explanationFeedbackDistributionRaw = db.prepare(
+      `SELECT feedback_type, COUNT(*) as count 
+       FROM explanation_feedback 
+       GROUP BY feedback_type
+       ORDER BY count DESC`
+    ).all();
+    const explanationFeedbackDistribution = explanationFeedbackDistributionRaw.map((f: any) => ({
+      name: f.feedback_type,
+      value: f.count,
+    }));
+
+    const explanationFollowUpCount = (db.prepare(
+      `SELECT COUNT(*) as cnt FROM explanation_follow_ups WHERE source = '反馈转换'`
+    ).get() as any).cnt;
+
+    const recentExplanations = db.prepare(
+      'SELECT * FROM explanations ORDER BY created_at DESC LIMIT 5'
+    ).all();
+
     return toCamelCase({
       totalStamps,
       totalThemes,
@@ -227,6 +273,13 @@ export class StatsService {
       feedbackElderlyDistribution,
       followUpStatusDistribution,
       recentAudioPackages,
+      totalExplanations,
+      pendingVisitsCount,
+      explanationThemeDistribution,
+      explanationFrequencyByTheme,
+      explanationFeedbackDistribution,
+      explanationFollowUpCount,
+      recentExplanations,
     });
   }
 }
